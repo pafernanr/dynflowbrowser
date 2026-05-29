@@ -149,10 +149,30 @@ class HttpdInfoScreen(Screen):
         """Initialize when screen is mounted."""
         self._mounted = True
         logs = self.query_one("#server-logs", RichLog)
-        logs.write("[dim]HTTP Server ready. Press (s) to start.[/dim]")
+
+        # Check if server was started externally before mount
+        server_running = (
+            hasattr(self.app, 'httpd_server')
+            and self.app.httpd_server is not None
+        )
+
+        if server_running:
+            self._sync_external_server()
+        else:
+            logs.write("[dim]HTTP Server ready. Press (s) to start.[/dim]")
 
     def on_show(self) -> None:
         """Called when screen becomes visible."""
+        # Check global server state (in case it was started from modal)
+        server_running = (
+            hasattr(self.app, 'httpd_server')
+            and self.app.httpd_server is not None
+        )
+
+        # If server was started externally, update our state
+        if server_running and not self.server_running:
+            self._sync_external_server()
+
         # Update tip message based on server state
         esc_tip = self.query_one("#server-esc-tip", Static)
         if self.server_running:
@@ -176,6 +196,36 @@ class HttpdInfoScreen(Screen):
             self._stop_server()
         else:
             self._start_server()
+
+    def _sync_external_server(self) -> None:
+        """Sync state when server was started externally (e.g., from modal)."""
+        if not hasattr(self.app, 'httpd_server') or not self.app.httpd_server:
+            return
+
+        logs = self.query_one("#server-logs", RichLog)
+        logs.write("[bold green]HTTP Server detected (started externally)[/bold green]")
+
+        # Update server info
+        self.server_info = {
+            'ip_addresses': self.app.httpd_server.get_all_ips(),
+            'port': self.app.httpd_server.port,
+            'hostname': self.app.httpd_server.get_fqdn(),
+        }
+        self._update_display()
+        self.server_running = True
+
+        # Update status message
+        status_msg = self.query_one("#server-status-msg", Static)
+        status_msg.update(
+            "Press [bold cyan](s)[/bold cyan] to stop the server"
+        )
+
+        # Show ESC tip
+        esc_tip = self.query_one("#server-esc-tip", Static)
+        esc_tip.update(
+            "Press [bold cyan]ESC[/bold cyan] to use Terminal Browser "
+            "(server keeps running)"
+        )
 
     def _start_server(self) -> None:
         """Start the HTTP server."""

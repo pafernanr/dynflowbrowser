@@ -28,6 +28,7 @@ class TasksScreen(Screen):
         Binding("t", "toggle_columns", "Toggle Columns", show=True),
         Binding("left", "collapse_task", "Collapse", show=True),
         Binding("right", "expand_task", "Expand", show=True),
+        Binding("l", "show_httpd_modal", "HTTP Access", show=True),
         Binding("d", "app.toggle_dark", "Dark Mode", show=False),
     ]
 
@@ -157,6 +158,10 @@ class TasksScreen(Screen):
         if hasattr(table, 'collapse_task'):
             table.collapse_task()
 
+    def action_show_httpd_modal(self) -> None:
+        """Show HTTP server access modal."""
+        self.app.push_screen(HttpdAccessModal(self.conf, plan_uuid=None))
+
 
 class ActionsScreen(Screen):
     """Screen showing actions and steps for a specific task/plan."""
@@ -173,6 +178,7 @@ class ActionsScreen(Screen):
         # Detail menu - separator
         Binding("enter", "show_detail_menu", "Details", show=True,
                 key_display="|  enter"),
+        Binding("l", "show_httpd_modal", "HTTP Access", show=True),
     ]
 
     def __init__(self, db, conf, plan_uuid):
@@ -317,6 +323,192 @@ class ActionsScreen(Screen):
             row_type: 'action' or 'step' or None
         """
         self.current_row_type = row_type
+
+    def action_show_httpd_modal(self) -> None:
+        """Show HTTP server access modal."""
+        self.app.push_screen(
+            HttpdAccessModal(self.conf, plan_uuid=self.plan_uuid)
+        )
+
+
+class HttpdAccessModal(ModalScreen):
+    """Modal to show HTTP server access info or start the server."""
+
+    BINDINGS = [
+        Binding("escape", "dismiss", "Close", show=True),
+        Binding("q", "dismiss", "Close", show=False),
+        Binding("y", "start_server", "Yes", show=False),
+        Binding("n", "dismiss", "No", show=False),
+    ]
+
+    def __init__(self, conf, plan_uuid=None, **kwargs):
+        """Initialize HTTP access modal.
+
+        Args:
+            conf: Configuration object
+            plan_uuid: Optional plan UUID for actions screen
+            **kwargs: Additional keyword arguments
+        """
+        super().__init__(**kwargs)
+        self.conf = conf
+        self.plan_uuid = plan_uuid
+        self.server_started = False
+
+    def compose(self) -> ComposeResult:
+        """Create modal widgets."""
+        from textual.containers import Container
+        from textual.containers import VerticalScroll
+
+        with Container(id="httpd_modal_container"):
+            yield Static("HTTP Server Access", id="httpd_modal_title")
+            yield VerticalScroll(id="httpd_modal_content")
+
+    def on_mount(self) -> None:
+        """Setup initial content when modal is mounted."""
+        self._update_content()
+
+    def _update_content(self) -> None:
+        """Update modal content based on server state."""
+        content_area = self.query_one("#httpd_modal_content")
+        content_area.remove_children()
+
+        # Check if server is running
+        server_running = (
+            hasattr(self.app, 'httpd_server')
+            and self.app.httpd_server is not None
+        )
+
+        if server_running:
+            # Server is running - show access information
+            self._show_access_info(content_area)
+        else:
+            # Server is stopped - ask to start
+            self._show_start_prompt(content_area)
+
+    def _show_start_prompt(self, container) -> None:
+        """Show prompt to start the server.
+
+        Args:
+            container: Container to add widgets to
+        """
+        from rich.text import Text
+
+        prompt_text = Text()
+        prompt_text.append(
+            "The HTTP server is currently stopped.\n\n",
+            style="dim"
+        )
+        prompt_text.append(
+            "Would you like to start it?\n\n",
+            style="bold"
+        )
+        prompt_text.append(
+            "Press ",
+            style="dim"
+        )
+        prompt_text.append("(y)", style="bold green")
+        prompt_text.append(" for Yes or ", style="dim")
+        prompt_text.append("(n)", style="bold red")
+        prompt_text.append(" for No", style="dim")
+
+        container.mount(Static(prompt_text))
+
+    def _show_access_info(self, container) -> None:
+        """Show server access information.
+
+        Args:
+            container: Container to add widgets to
+        """
+        from rich.text import Text
+
+        if not hasattr(self.app, 'httpd_server') or not self.app.httpd_server:
+            return
+
+        # Get server info
+        ip_addresses = self.app.httpd_server.get_all_ips()
+        port = self.app.httpd_server.port
+        hostname = self.app.httpd_server.get_fqdn()
+
+        # Build URL path based on plan_uuid
+        url_path = f"/?plan_uuid={self.plan_uuid}" if self.plan_uuid else "/"
+
+        # Direct HTTP Access section
+        direct_text = Text()
+        direct_text.append("Direct HTTP Access:\n", style="bold cyan")
+        for iface, ip in ip_addresses:
+            url = f"http://{ip}:{port}{url_path}"
+            if iface:
+                direct_text.append(f"  {iface}: ", style="dim")
+            else:
+                direct_text.append("  ", style="dim")
+            direct_text.append(f"{url}\n", style="bold")
+
+        container.mount(Static(direct_text))
+        container.mount(Static(""))
+
+        # SSH Tunnel Access section
+        ssh_text = Text()
+        ssh_text.append("SSH Tunnel Access:\n", style="bold cyan")
+        ssh_text.append("  1. Create SSH tunnel:\n", style="dim")
+        ssh_text.append(
+            f"     ssh -L {port}:localhost:{port} {hostname}\n\n",
+            style="bold"
+        )
+        ssh_text.append("  2. Open in browser:\n", style="dim")
+        ssh_text.append(
+            f"     http://localhost:{port}{url_path}\n",
+            style="bold"
+        )
+
+        container.mount(Static(ssh_text))
+
+    def action_start_server(self) -> None:
+        """Start the HTTP server."""
+        from dynflowbrowser.lib.ui.httpd.output import HttpdOutput
+        from dynflowbrowser.lib.ui.httpd.server import DynamicHttpServer
+        import threading
+        import time
+
+        # Don't start if already running
+        if hasattr(self.app, 'httpd_server') and self.app.httpd_server:
+            self._update_content()
+            return
+
+        # Show starting message
+        content_area = self.query_one("#httpd_modal_content")
+        content_area.remove_children()
+        content_area.mount(
+            Static("[bold green]Starting HTTP Server...[/bold green]")
+        )
+
+        # Compute stats
+        httpd_output = HttpdOutput(self.conf)
+        pulp_stats, dynflow_stats = httpd_output.compute_execution_stats()
+        httpd_output.copy_static_assets()
+
+        # Create and start server
+        self.app.httpd_server = DynamicHttpServer(
+            self.conf,
+            pulp_stats,
+            dynflow_stats,
+            quiet=True
+        )
+
+        def start_server():
+            self.app.httpd_server.start()
+
+        server_thread = threading.Thread(target=start_server, daemon=True)
+        server_thread.start()
+        time.sleep(0.3)
+
+        self.server_started = True
+
+        # Update content to show access info
+        self._update_content()
+
+    def action_dismiss(self) -> None:
+        """Close the modal."""
+        self.app.pop_screen()
 
 
 class DetailMenuModal(ModalScreen):
@@ -578,6 +770,31 @@ class DynflowTUI(App):
     #about_content {
         padding: 1;
         height: auto;
+    }
+
+    HttpdAccessModal {
+        align: center middle;
+    }
+
+    #httpd_modal_container {
+        width: 82;
+        height: auto;
+        background: $surface;
+        border: thick $primary;
+        padding: 1;
+    }
+
+    #httpd_modal_title {
+        background: $boost;
+        color: $text;
+        padding: 1;
+        text-style: bold;
+    }
+
+    #httpd_modal_content {
+        padding: 2;
+        height: auto;
+        max-height: 30;
     }
 
     DetailMenuModal {

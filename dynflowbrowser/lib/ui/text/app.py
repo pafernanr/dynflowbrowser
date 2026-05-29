@@ -700,19 +700,19 @@ class DynflowTUI(App):
     CSS = """
     HeaderSeparator {
         height: 1;
-        padding: 0 1;
+        padding: 0;
     }
 
     HostDetailsHeader {
         height: 2;
         background: $boost;
-        padding: 0 1;
+        padding: 0;
     }
 
     #action_details {
         height: auto;
         background: $panel;
-        padding: 0 1;
+        padding: 0;
     }
 
     #main_content, #actions_main {
@@ -724,7 +724,7 @@ class DynflowTUI(App):
         min-width: 50;
         max-width: 80;
         border: solid $primary;
-        padding: 1;
+        padding: 0;
         background: $surface;
     }
 
@@ -757,18 +757,18 @@ class DynflowTUI(App):
         height: auto;
         background: $surface;
         border: thick $primary;
-        padding: 1;
+        padding: 0;
     }
 
     #about_title {
         background: $boost;
         color: $text;
-        padding: 1;
+        padding: 0;
         text-style: bold;
     }
 
     #about_content {
-        padding: 1;
+        padding: 0;
         height: auto;
     }
 
@@ -781,18 +781,18 @@ class DynflowTUI(App):
         height: auto;
         background: $surface;
         border: thick $primary;
-        padding: 1;
+        padding: 0;
     }
 
     #httpd_modal_title {
         background: $boost;
         color: $text;
-        padding: 1;
+        padding: 0;
         text-style: bold;
     }
 
     #httpd_modal_content {
-        padding: 2;
+        padding: 1;
         height: auto;
         max-height: 30;
     }
@@ -806,19 +806,19 @@ class DynflowTUI(App):
         height: auto;
         background: $surface;
         border: thick $primary;
-        padding: 1;
+        padding: 0;
     }
 
     #menu_title {
         background: $boost;
         color: $text;
-        padding: 1;
+        padding: 0;
         text-style: bold;
         dock: top;
     }
 
     #menu_container Static {
-        padding: 0 1;
+        padding: 0;
         height: 1;
     }
 
@@ -836,18 +836,18 @@ class DynflowTUI(App):
         height: 90%;
         background: $surface;
         border: thick $primary;
-        padding: 1;
+        padding: 0;
     }
 
     #detail_title {
         background: $boost;
         color: $text;
-        padding: 1;
+        padding: 0;
         text-style: bold;
     }
 
     #detail_content {
-        padding: 1;
+        padding: 0;
         height: auto;
     }
     """

@@ -29,14 +29,14 @@ class HttpdInfoScreen(Screen):
     #info-container {
         height: 11;
         border: solid $primary;
-        margin: 1;
+        margin: 0;
     }
 
     #direct-access, #ssh-tunnel {
         width: 50%;
         height: 100%;
         border-right: solid $primary;
-        padding: 1 2;
+        padding: 0 1;
     }
 
     #ssh-tunnel {
@@ -46,36 +46,36 @@ class HttpdInfoScreen(Screen):
     .info-title {
         text-style: bold;
         color: $accent;
-        margin-bottom: 1;
+        margin-bottom: 0;
     }
 
     .info-line {
-        margin: 0 0 0 2;
+        margin: 0 0 0 1;
     }
 
     #server-status-msg {
         width: 100%;
         text-align: center;
-        margin: 1 0 0 0;
+        margin: 0;
     }
 
     #server-esc-tip {
         width: 100%;
         text-align: center;
-        margin: 0 0 1 0;
+        margin: 0;
     }
 
     #logs-container {
         height: 1fr;
         border: solid $primary;
-        margin: 0 1 1 1;
+        margin: 0;
     }
 
     #logs-title {
         width: 100%;
         text-style: bold;
         color: $accent;
-        padding: 0 2;
+        padding: 0 1;
         background: $primary-background;
     }
 
@@ -83,7 +83,7 @@ class HttpdInfoScreen(Screen):
         width: 100%;
         height: 1fr;
         border: none;
-        padding: 0 1;
+        padding: 0;
     }
     """
 

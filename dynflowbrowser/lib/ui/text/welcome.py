@@ -115,7 +115,7 @@ class WelcomeScreen(Screen):
                     yield Static(ascii_art, id="ascii-art")
                     yield Static(self.version, id="version-label")
                     yield Static(
-                        "Select the Interface Mode:",
+                        "Choose Your Browser:",
                         id="mode-label"
                     )
                     with Center():

@@ -31,11 +31,11 @@ class HeaderSeparator(Static):
         Returns:
             Text: Orange horizontal line with version
         """
-        # Get terminal width, subtract padding (2 chars for 0 1 padding)
+        # Get terminal width (no horizontal padding)
         try:
-            width = self.app.size.width - 2 if hasattr(self, 'app') else 118
+            width = self.app.size.width if hasattr(self, 'app') else 120
         except:
-            width = 118
+            width = 120
 
         # Build: ─────── {version} ──
         # Format: dashes + space + version + space + 2 end dashes

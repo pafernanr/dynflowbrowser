@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DynflowBrowserNG - {{label}}</title>
+    <link rel="stylesheet" href="../html/css/modern.css">
+</head>
+<body class="page-actions">
+    <!-- Top Project Panel -->
+    <div class="project-panel">
+        <div class="project-left">
+            <a href="https://github.com/pafernanr/dynflowbrowser" target="_blank" rel="noopener noreferrer" class="project-name">DynflowBrowser</a>
+            <span class="project-version">{{sos['version']}}</span>
+        </div>
+    </div>
+
+    <!-- Header Toggle Bar -->
+    <div class="header-toggle-bar">
+        <button class="header-toggle-btn" id="headerToggle" title="Show/Hide Header">
+            <span class="toggle-icon">▲</span>
+        </button>
+        <div class="header-toggle-details">
+            <span class="detail-item">
+                <span class="detail-label"><a href="/" title="Go to home">🏠</a></span>
+            </span>
+            <span class="detail-separator">|</span>
+            <span class="detail-item">
+                <span class="detail-label">Task:</span>
+                <span class="detail-value">{{root_actions[0][12] if root_actions else ''}}</span>
+            </span>
+            <span class="detail-separator">|</span>
+            <span class="detail-item">
+                <span class="detail-label">Label:</span>
+                <span class="detail-value">{{label}}</span>
+            </span>
+            <span class="detail-separator">|</span>
+            <span class="detail-item">
+                <span class="detail-label">ID:</span>
+                <span class="detail-value">{{root_actions[0][13] if root_actions else ''}}</span>
+            </span>
+            {% if caller_execution_plan_id %}
+            <span class="detail-separator">|</span>
+            <span class="detail-item">
+                <span class="detail-label">Caller:</span>
+                <span class="detail-value">
+                    <a href='/?plan_uuid={{caller_execution_plan_id}}'>{{caller_execution_plan_id}}</a>
+                </span>
+            </span>
+            {% endif %}
+            <span class="detail-separator">|</span>
+            <span class="detail-item">
+                <span class="detail-label">Plan:</span>
+                <span class="detail-value">{{execution_plan_uuid}}</span>
+            </span>
+        </div>
+    </div>
+
+    <!-- Compact Header Section -->
+    <div class="header-section-compact" id="pageHeader">
+            <div class="header-content">
+            <div class="stats-compact">
+                <div class="stat-table-compact">
+                    <div class="stat-table-title">Dynflow Top 5 (by execution time)</div>
+                    <table class="stat-table-mini">
+                        <thead>
+                            <tr>
+                                <th>Exectime</th>
+                                <th>Steps</th>
+                                <th>Name</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in dynflow_exectime %}
+                            <tr>
+                                <td>{{ "{:0,.0f}".format(r[1][0]) }}</td>
+                                <td>{{ "{:0,.0f}".format(r[1][1]) }}</td>
+                                <td>{{ r[0] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if pulp_exectime|length > 0 %}
+                <div class="stat-table-compact">
+                    <div class="stat-table-title">Pulp Top 5 (by execution time)</div>
+                    <table class="stat-table-mini">
+                        <thead>
+                            <tr>
+                                <th>Exectime</th>
+                                <th>Actions</th>
+                                <th>Name</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in pulp_exectime %}
+                            <tr>
+                                <td>{{ "{:0,.0f}".format(r[1][0]) }}</td>
+                                <td>{{ "{:0,.0f}".format(r[1][1]) }}</td>
+                                <td>{{ r[0] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+            </div>
+    </div>
+
+    <div class="page-container">
+        <!-- Actions Tree Container -->
+        <div class="action-tree-container">
+            <div class="action-list-header">
+                <div class="action-col-class">
+                    Action / Step
+                    <div class="control-buttons-inline">
+                        <button id="expandErrors" class="btn-control">Expand Errors</button>
+                        <button id="toggleAll" class="btn-control">Expand All</button>
+                    </div>
+                </div>
+                <div class="action-col-metric">Started At</div>
+                <div class="action-col-metric">Ended At</div>
+                <div class="action-col-metric">Real Time</div>
+                <div class="action-col-metric">Exec Time</div>
+                <div class="action-col-status">Status</div>
+            </div>
+            <div class="action-tree-scrollable">
+            {# Macro to recursively render action and its children #}
+            {% macro render_action(a, child_actions, visited=[]) %}
+            {% set action_id = a[0] %}
+            {# Prevent infinite recursion from circular references #}
+            {% if action_id in visited %}
+                {# Skip this action to prevent cycle #}
+            {% else %}
+            {% set _ = visited.append(action_id) %}
+            {# Determine action state #}
+            {% if a[4] is not none and a[7] is not none and a[4] == 'Actions::RemoteExecution::ProxyAction' and a[7] != '' and '&quot;exit_status&quot;:&nbsp;0,' not in a[7] %}
+                {% set state = 'error' %}
+            {% else %}
+                {% set state = a[10] %}
+            {% endif %}
+
+            {# Check if action has alerts #}
+            {% set has_alert = (a[7] and a[7]|length and a[7] != "{}") %}
+
+            <div class="action-node">
+                <div class="action-header {% if state == 'error' %}has-error{% elif state == 'warning' %}has-warning{% endif %}">
+                    <div class="action-class">
+                        {% if a[19]|length or action_id in child_actions %}<span class="expand-icon">▶</span>{% endif %}
+                        <span>{{a[3]}}: {{a[4]}}</span>
+                        <div class="action-buttons">
+                            <button class="btn-inline" data-target="input-{{a[0]}}" title="Show Input">Input</button>
+                            <button class="btn-inline" data-target="output-{{a[0]}}" title="Show Output">Output{% if has_alert %}<span class="alert-mark">!</span>{% endif %}</button>
+                            <button class="btn-inline" data-target="data-{{a[0]}}" title="Show Data">Data</button>
+                        </div>
+                    </div>
+                    <span class="action-metric">{% if a[15] %}{{ a[15].split(".")[0] }}{% endif %}</span>
+                    <span class="action-metric">{% if a[16] %}{{ a[16].split(".")[0] }}{% endif %}</span>
+                    <span class="action-metric">{% if a[17] %}{{ "{:0,.2f}".format(a[17]) }}{% endif %}</span>
+                    <span class="action-metric">{% if a[18] %}{{ "{:0,.2f}".format(a[18]) }}{% endif %}</span>
+                    <span class="status-badge status-{{state}}">{{state}}</span>
+                </div>
+
+                <div class="action-details">
+                    <div class="content-area" id="input-{{a[0]}}">
+                        <pre class="code-block">{{a[6]}}</pre>
+                    </div>
+
+                    <div class="content-area" id="output-{{a[0]}}">
+                        <pre class="code-block">{{a[7]}}</pre>
+                    </div>
+
+                    <div class="content-area" id="data-{{a[0]}}">
+                        <pre class="code-block">{{a[5]}}</pre>
+                    </div>
+
+                    <!-- Steps -->
+                    {% if a[19] %}
+                    <div class="steps-list">
+                        {% for s in a[19] %}
+                        <div class="step-node">
+                            <div class="step-header">
+                                <div class="step-class">
+                                    <span>{{a[3]}}.{{s[1]}}: {{s[10]}}</span>
+                                    <div class="action-buttons">
+                                        <button class="btn-inline" data-target="error-{{a[0]}}-{{s[1]}}" title="Show Error">Error{% if s[13]|length %}<span class="alert-mark">!</span>{% endif %}</button>
+                                        <button class="btn-inline" data-target="queue-{{a[0]}}-{{s[1]}}" title="Show Queue">Queue</button>
+                                        <button class="btn-inline" data-target="children-{{a[0]}}-{{s[1]}}" title="Show Children">Children</button>
+                                        <button class="btn-inline" data-target="stepdata-{{a[0]}}-{{s[1]}}" title="Show Data">Data</button>
+                                    </div>
+                                </div>
+                                <span class="action-metric">{{ s[4].split(".")[0] }}</span>
+                                <span class="action-metric">{{ s[5].split(".")[0] }}</span>
+                                <span class="action-metric">{{ "{:0,.2f}".format(s[6]) }}</span>
+                                <span class="action-metric">{{ "{:0,.2f}".format(s[7]) }}</span>
+                                <span class="status-badge status-{{s[3]}}">{{s[3]}}</span>
+                            </div>
+
+                            <div class="step-details">
+                                <div class="content-area" id="error-{{a[0]}}-{{s[1]}}">
+                                    <pre class="code-block">{{s[13]}}</pre>
+                                </div>
+
+                                <div class="content-area" id="queue-{{a[0]}}-{{s[1]}}">
+                                    <pre class="code-block">{{s[12]}}</pre>
+                                </div>
+
+                                <div class="content-area" id="children-{{a[0]}}-{{s[1]}}">
+                                    <pre class="code-block">{{s[14]}}</pre>
+                                </div>
+
+                                <div class="content-area" id="stepdata-{{a[0]}}-{{s[1]}}">
+                                    <pre class="code-block">{{s[15]}}</pre>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Child actions (nested) -->
+                    {% if action_id in child_actions %}
+                    <div class="child-actions">
+                        {% for child in child_actions[action_id] %}
+                            {{ render_action(child, child_actions, visited) }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            {% endmacro %}
+
+            {# Render all root actions #}
+            {% for root in root_actions %}
+                {{ render_action(root, child_actions) }}
+            {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script src="../html/js/modern.js"></script>
+</body>
+</html>

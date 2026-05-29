@@ -1,0 +1,4 @@
+Jinja2
+pandas
+pytz
+textual>=0.50.0

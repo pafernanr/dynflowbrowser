@@ -9,31 +9,39 @@ DynflowBrowser provides powerful interfaces to analyze Foreman/Satellite task ex
 ## Features
 
 ### 🚀 Performance & Efficiency
-- **5-10x faster** than original version with optimized CSV parsing (pandas) and SQLite operations
+- **100x faster** than original [dynflowparser](https://github.com/pafernanr/dynflowparser) with optimized CSV parsing (pandas) and SQLite operations
 - WAL mode and compound indexes for blazing-fast queries
 - Smart filtering: only failed tasks loaded by default (use `-a` for all)
 
 ### 🖥️ Terminal Browser
 - Interactive Textual-based TUI with full keyboard navigation
-- Real-time task browsing without starting a server
-- Expandable/collapsible task hierarchies (arrow keys)
+- Real-time task browsing without starting the HTTPD server
+- Expandable/collapsible task hierarchies
 - Auto-expansion of failed actions and steps for quick troubleshooting
-- Toggle views: Task Action/ID ↔ Label/UUID (press `t`)
-- Stats panel with Top Dynflow and Pulp metrics (press `s`)
+- Toggle views: Task Action/ID ↔ Label/UUID
+- Stats panel with Top Dynflow and Pulp metrics
 
 ### 🌐 HTTPD Service
-- On-demand page generation (no disk writes)
-- Manual start/stop control (press `s` in HTTPD screen)
-- Network interface detection with direct HTTP access URLs
-- SSH tunnel support for remote access
+- Dynamic page generation
+- Manual start/stop control
+- Share access quickly:
+  - Network interface detection with direct HTTP access URLs
+  - SSH tunnel support for remote access
 - Server keeps running while browsing terminal interface
 - Responsive full-width layout with improved readability
 
 ### 📊 Smart Analysis
+- **Dynflow and Pulp Stats**: Top used classes by ExecTime or by Count
 - **Error Navigation**: Failed actions & steps automatically expanded
 - **System Context**: Header shows hostname, timezone, Satellite version, RAM, CPU, tuning profile
-- **Timezone Support**: UTC dates automatically converted to sosreport timezone
+- **Timezone Support**: Dynflow and Pulp UTC dates automatically converted to sosreport timezone
 - **Readable Formatting**: Indented fields for Actions & Steps with syntax highlighting
+
+## Screenshots
+
+| Tasks list | Task details | Terminal |
+| --- | --- | --- |
+| ![](https://raw.githubusercontent.com/pafernanr/dynflowbrowser/refs/heads/main/docs/files/_screenshot1.png) | ![](https://raw.githubusercontent.com/pafernanr/dynflowbrowser/refs/heads/main/docs/files/_screenshot2.png) | ![](https://raw.githubusercontent.com/pafernanr/dynflowbrowser/refs/heads/main/docs/files/_screenshot3.png) |
 
 ## Installation
 
@@ -61,73 +69,6 @@ pip install -e .
   - pytz
   - textual (for terminal UI)
 
-## Quick Start
-
-### Default: Welcome Screen (Interactive Mode Selection)
-```bash
-dynflowbrowser /path/to/sosreport
-```
-Navigate with:
-- **Arrow keys** / **Tab**: Select interface mode
-- **Enter** / **t**: Terminal Browser
-- **h**: HTTPD Service
-
-### Terminal Browser (Direct Launch)
-```bash
-dynflowbrowser --text /path/to/sosreport
-```
-
-Keyboard shortcuts:
-- **Arrow keys**: Navigate tasks
-- **Enter**: View task details
-- **Left/Right**: Collapse/expand task hierarchies
-- **t**: Toggle Task Action/ID ↔ Label/UUID view
-- **s**: Show/hide stats panel
-- **ESC**: Back to previous screen
-- **q**: Quit
-
-### HTTPD Service (Direct Launch)
-```bash
-dynflowbrowser --httpd /path/to/sosreport
-```
-
-In HTTPD screen:
-- Press **s** to start/stop the server
-- Press **ESC** to use Terminal Browser while server runs
-- Server provides URLs for direct access and SSH tunnel instructions
-
-### Remote Access via SSH Tunnel
-When HTTPD server is running:
-```bash
-# On your local machine
-ssh -L 8000:localhost:8000 satellite-hostname
-
-# Then open in browser
-http://localhost:8000/
-```
-
-## Usage Options
-
-```bash
-dynflowbrowser [OPTIONS] SOSREPORT_PATH
-```
-
-### Interface Options
-- `--text`: Launch Terminal Browser directly
-- `--httpd`: Launch HTTPD Service screen directly
-- *(no flag)*: Show welcome screen with mode selection
-
-### Filtering Options
-- `-a, --showall`: Show all tasks (default: only failed tasks)
-- `-f, --from DATE`: Parse tasks from this datetime
-- `-t, --to DATE`: Parse tasks up to this datetime
-- `-l, --last N`: Parse only last N days
-
-### Advanced Options
-- `-o, --output_path PATH`: Output directory (default: `./dynflowbrowser/`)
-- `-n, --nosql`: Reuse existing SQLite database
-- `-q, --quiet`: Suppress progress output
-- `-d, --debug`: Enable debug mode
 
 ## Exporting Tasks from Foreman Database
 
@@ -187,45 +128,3 @@ Select the Interface Mode:
 - Connection info (Direct HTTP / SSH Tunnel)
 - Server control (Start/Stop)
 - Live server logs
-
-## Development
-
-### Running Tests
-```bash
-pip install -r test-requirements.txt
-pytest
-```
-
-### Code Style
-```bash
-flake8 dynflowbrowser/
-```
-
-## Contributing
-
-Contributions are welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
-## License
-
-GPLv3 - See [LICENSE](LICENSE) for details
-
-## Author
-
-Pablo Fernández Rodríguez
-
-## Links
-
-- **GitHub**: https://github.com/pafernanr/dynflowbrowser
-- **Issues**: https://github.com/pafernanr/dynflowbrowser/issues
-- **PyPI**: https://pypi.org/project/dynflowbrowser/
-
-## Acknowledgments
-
-Built with:
-- [Textual](https://github.com/Textualize/textual) - Modern TUI framework
-- [Jinja2](https://palletsprojects.com/p/jinja/) - Template engine
-- [pandas](https://pandas.pydata.org/) - Data analysis

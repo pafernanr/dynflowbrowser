@@ -137,7 +137,9 @@ class Conf:
 
         # Check if database file already exists and ask user
         if os.path.exists(self.dbfile) and self.writesql:
-            print(f"\nDatabase file already exists: {self.dbfile}")
+            # Show relative path for cleaner output
+            rel_path = os.path.relpath(self.dbfile, self.cwd)
+            print(f"\nDatabase file already exists: {rel_path}")
             response = input("Reuse existing database? [y/N]: ").strip().lower()
             if response == 'y':
                 # Reuse existing database, skip data import

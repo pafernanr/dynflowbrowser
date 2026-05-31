@@ -129,14 +129,29 @@ class Conf:
             f"{self.args.output_path}/dynflowbrowser/{self.sos['sosname']}"
             .replace('//', '/')
             )
-        # Clean output directory if recreating database
-        if os.path.exists(self.args.output_path) and self.writesql:
-            shutil.rmtree(self.args.output_path)
 
         # Create base output directory
         os.makedirs(self.args.output_path, exist_ok=True)
 
         self.dbfile = self.args.output_path + "/dynflowbrowser.db"
+
+        # Check if database file already exists and ask user
+        if os.path.exists(self.dbfile) and self.writesql:
+            print(f"\nDatabase file already exists: {self.dbfile}")
+            response = input("Reuse existing database? [y/N]: ").strip().lower()
+            if response == 'y':
+                # Reuse existing database, skip data import
+                self.writesql = False
+                print("Reusing existing database...")
+            else:
+                # Overwrite - remove old database files
+                os.remove(self.dbfile)
+                # Also remove WAL files if they exist
+                for suffix in ['-wal', '-shm']:
+                    wal_file = self.dbfile + suffix
+                    if os.path.exists(wal_file):
+                        os.remove(wal_file)
+                print("Overwriting database...")
 
     def get_version(self):
         fname = os.path.join(os.path.dirname(__file__),

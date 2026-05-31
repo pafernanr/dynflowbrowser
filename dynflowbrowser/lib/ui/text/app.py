@@ -736,6 +736,14 @@ class DynflowTUI(App):
         height: 1fr;
     }
 
+    DataTable > .datatable--cursor {
+        text-style: none;
+    }
+
+    DataTable > .datatable--hover {
+        text-style: none;
+    }
+
     .error {
         color: $error;
     }

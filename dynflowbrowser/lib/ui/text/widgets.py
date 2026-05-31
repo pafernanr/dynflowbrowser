@@ -354,7 +354,7 @@ class TasksDataTable(DataTable):
                     label_text.append("▼ ", style="dim")
                 else:
                     label_text.append("▶ ", style="dim")
-            label_text.append(display_text if display_text else "", style="bold")
+            label_text.append(display_text if display_text else "")
 
         # Format second column (task ID or plan UUID depending on mode)
         id_display = plan_uuid if self.show_label_mode else task_id
@@ -979,7 +979,7 @@ class ActionsTreeTable(DataTable):
                 action_text.append("▶ ", style="dim")  # Collapsed
 
         action_text.append(f"{run_step_id}: ", style="dim")
-        action_text.append(action_class, style="bold")
+        action_text.append(action_class)
 
         # Add alert indicator if action has output data
         output = action[7] if len(action) > 7 else ""

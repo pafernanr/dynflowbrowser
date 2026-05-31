@@ -1,4 +1,5 @@
 import datetime
+import os
 import time
 
 from dynflowbrowser.lib.configuration import Conf
@@ -15,7 +16,6 @@ class DynflowBrowser:
         self.input_dynflow = InputDynflow(self.conf)
 
     def main(self):
-        start_time = time.time()
         sqlite = OutputSQLite(self.conf)
         headers = self.conf.dynflowdata['tasks']['headers']
         dynflow = self.input_dynflow.read_dynflow('tasks')

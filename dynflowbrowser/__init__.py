@@ -1,6 +1,4 @@
 import datetime
-import os
-import time
 
 from dynflowbrowser.lib.configuration import Conf
 from dynflowbrowser.lib.inputdynflow import InputDynflow
@@ -12,7 +10,7 @@ class DynflowBrowser:
 
     def __init__(self):
         self.conf = Conf()
-        self.util = Util(self.conf.args.debug)
+        self.util = Util()
         self.input_dynflow = InputDynflow(self.conf)
 
     def main(self):

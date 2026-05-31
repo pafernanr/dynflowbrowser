@@ -22,7 +22,7 @@ class HttpdOutput(BaseOutput):
         """
         super().__init__(conf)
         self.db = OutputSQLite(conf)
-        self.util = Util(conf.args.debug)
+        self.util = Util()
         self.data_provider = BaseDataProvider(self.db, conf)
 
     def write(self):
@@ -44,7 +44,7 @@ class HttpdOutput(BaseOutput):
             self.conf,
             self.data_provider.pulp_total_exectime,
             dynflow_stats,
-            self.conf.args.quiet
+            quiet=False
         )
         server.start()
 
@@ -53,8 +53,7 @@ class HttpdOutput(BaseOutput):
             while True:
                 time.sleep(1)
         except KeyboardInterrupt:
-            if not self.conf.args.quiet:
-                print("\nShutting down HTTP server...")
+            print("\nShutting down HTTP server...")
             try:
                 server.stop()
             except KeyboardInterrupt:

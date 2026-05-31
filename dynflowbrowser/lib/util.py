@@ -7,7 +7,7 @@ import pytz
 
 class Util:
 
-    def __init__(self, debuglevel) -> None:
+    def __init__(self, debuglevel='W') -> None:
         self.debuglevel = debuglevel
         self.valid_date_formats = [
             "%Y-%m-%d",

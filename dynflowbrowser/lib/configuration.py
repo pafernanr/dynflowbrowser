@@ -47,13 +47,6 @@ class Conf:
             action='store_true'
             )
         self.parser.add_argument(
-            '-d',
-            '--debug',
-            help="Debug level. Default 'W'",
-            default="W",
-            choices=['D', 'I', 'W', 'E']
-            )
-        self.parser.add_argument(
             '-f',
             '--from',
             dest='date_from',
@@ -75,20 +68,6 @@ class Conf:
             dest='last_n_days',
             help='Parse only last N days. Overrides `--from` and `--to`.',
             type=int
-            )
-        self.parser.add_argument(
-            '-n',
-            '--nosql',
-            help='Reuse existent sqlite file.',
-            default=False,
-            action='store_true'
-            )
-        self.parser.add_argument(
-            '-q',
-            '--quiet',
-            help="Quiet. Don't show progress bar.",
-            default=False,
-            action='store_true'
             )
         self.parser.add_argument(
             '-o',

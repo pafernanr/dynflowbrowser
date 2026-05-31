@@ -10,7 +10,7 @@ from dynflowbrowser.lib.util import Util
 class OutputSQLite:
     def __init__(self, conf):
         self.conf = conf
-        self.util = Util(conf.args.debug)
+        self.util = Util()
         self._conn = sqlite3.connect(conf.dbfile)
         self._cursor = self._conn.cursor()
 
@@ -279,7 +279,7 @@ class OutputSQLite:
                     multi = []
 
                 # Update progress bar less frequently
-                if not self.conf.args.quiet and i % progress_update_freq == 0:
+                if i % progress_update_freq == 0:
                     pb.print_bar(i)
 
         # Insert remaining records
@@ -290,15 +290,14 @@ class OutputSQLite:
         # Commit the transaction
         self.commit()
 
-        if not self.conf.args.quiet:
-            seconds = time.time() - start_time
-            if last_index > 0:
-                speed = round(last_index/seconds)
-            else:
-                speed = 0
-            print("  - Parsed " + str(last_index) + " " + dtype + " in "
-                  + self.util.seconds_to_str(seconds)
-                  + " (" + str(speed) + " lines/second)")
+        seconds = time.time() - start_time
+        if last_index > 0:
+            speed = round(last_index/seconds)
+        else:
+            speed = 0
+        print("  - Parsed " + str(last_index) + " " + dtype + " in "
+              + self.util.seconds_to_str(seconds)
+              + " (" + str(speed) + " lines/second)")
 
     def parse_action_output(self, txt):
         txt = txt.replace("\\r", "").replace("\\n", "\n")

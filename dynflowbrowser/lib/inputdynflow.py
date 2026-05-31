@@ -10,7 +10,7 @@ class InputDynflow:
 
     def __init__(self, conf):
         self.conf = conf
-        self.util = Util(conf.args.debug)
+        self.util = Util()
         self.get_dynflow_schema()
 
     def read_dynflow(self, dtype):

@@ -23,6 +23,7 @@ setuptools.setup(
         },
     packages=setuptools.find_packages(),
     package_data={
+        'dynflowbrowser': ['__VERSION__'],
         'dynflowbrowser.html.css': ['*'],
         'dynflowbrowser.html.js': ['*'],
         'dynflowbrowser.templates': ['*'],

@@ -18,7 +18,7 @@ class HttpdInfoScreen(Screen):
     BINDINGS = [
         Binding("q", "app.quit", "Quit", priority=True),
         Binding("escape", "back", "Back", show=True),
-        Binding("s", "toggle_server", "Start/Stop", show=True),
+        Binding("h", "toggle_server", "Start/Stop", show=True),
     ]
 
     CSS = """
@@ -130,7 +130,7 @@ class HttpdInfoScreen(Screen):
 
         # Status message between sections
         yield Static(
-            "Press [bold cyan](s)[/bold cyan] to start the server",
+            "Press [bold cyan](h)[/bold cyan] to start the server",
             id="server-status-msg"
         )
         yield Static(
@@ -217,7 +217,7 @@ class HttpdInfoScreen(Screen):
         # Update status message
         status_msg = self.query_one("#server-status-msg", Static)
         status_msg.update(
-            "Press [bold cyan](s)[/bold cyan] to stop the server"
+            "Press [bold cyan](h)[/bold cyan] to stop the server"
         )
 
         # Show ESC tip
@@ -276,7 +276,7 @@ class HttpdInfoScreen(Screen):
         # Update status message
         status_msg = self.query_one("#server-status-msg", Static)
         status_msg.update(
-            "Press [bold cyan](s)[/bold cyan] to stop the server"
+            "Press [bold cyan](h)[/bold cyan] to stop the server"
         )
 
         # Show ESC tip
@@ -309,7 +309,7 @@ class HttpdInfoScreen(Screen):
         # Update status message
         status_msg = self.query_one("#server-status-msg", Static)
         status_msg.update(
-            "Press [bold cyan](s)[/bold cyan] to start the server"
+            "Press [bold cyan](h)[/bold cyan] to start the server"
         )
 
         # Show stopped tip
@@ -343,16 +343,26 @@ class HttpdInfoScreen(Screen):
         direct_content.update("\n".join(lines))
 
         # Update SSH tunnel content
-        hostname = self.server_info.get('hostname', 'localhost')
         port = self.server_info.get('port', '8000')
         ssh_content = self.query_one("#ssh-tunnel-content", Static)
-        ssh_lines = [
-            "Create SSH tunnel:",
-            f"  ssh -L {port}:localhost:{port} {hostname}",
+        ssh_lines = ["Create SSH tunnel using the proper IP:"]
+
+        # Add SSH commands for each available IP (except localhost)
+        for iface, ip in self.server_info.get('ip_addresses', []):
+            if ip != "127.0.0.1":
+                ssh_lines.append(f"  ssh -L {port}:localhost:{port} {ip}")
+
+        # If no non-localhost IPs found, show generic command
+        if len(ssh_lines) == 1:
+            ssh_lines.append(f"  ssh -L {port}:localhost:{port} <remote-ip>")
+
+        # Add the browser URL
+        ssh_lines.extend([
             "",
             "Then open in browser:",
             f"  http://localhost:{port}/"
-        ]
+        ])
+
         ssh_content.update("\n".join(ssh_lines))
 
         # Update logs

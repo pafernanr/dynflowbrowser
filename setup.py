@@ -24,9 +24,9 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     package_data={
         'dynflowbrowser': ['__VERSION__'],
-        'dynflowbrowser.html.css': ['*'],
-        'dynflowbrowser.html.js': ['*'],
-        'dynflowbrowser.templates': ['*'],
+        'dynflowbrowser.lib.ui.httpd.static.css': ['*'],
+        'dynflowbrowser.lib.ui.httpd.static.js': ['*'],
+        'dynflowbrowser.lib.ui.httpd.templates': ['*'],
     },
     license='GPLv3',
     author='Pablo Fernández Rodríguez',

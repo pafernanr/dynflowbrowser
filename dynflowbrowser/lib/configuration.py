@@ -86,21 +86,6 @@ Examples:
             default=self.cwd,
             type=self.valid_output_path
             )
-        output_group = self.parser.add_mutually_exclusive_group()
-        output_group.add_argument(
-            '--httpd',
-            dest='httpd',
-            help='Start HTTP server (default behavior).',
-            default=False,
-            action='store_true'
-            )
-        output_group.add_argument(
-            '--text',
-            dest='text_ui',
-            help='Launch interactive terminal UI instead of HTTP server.',
-            default=False,
-            action='store_true'
-            )
         self.parser.add_argument(
             'sosreport_path',
             help='Path to sos report folder. Default is current path.',
@@ -117,9 +102,6 @@ Examples:
                 self.args.sosreport_path
             )
             self.args.sosreport_path = validated_path
-
-        # Track if user explicitly specified an interface
-        self.args.explicit_interface = self.args.httpd or self.args.text_ui
 
         # Backward compatibility: showall is True when no filters are specified
         self.args.showall = (

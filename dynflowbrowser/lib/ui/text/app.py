@@ -869,7 +869,8 @@ class DynflowTUI(App):
         "httpd": HttpdInfoScreen,
     }
 
-    def __init__(self, db, conf, show_welcome=False, initial_mode="welcome"):
+    def __init__(self, db, conf, show_welcome=False, initial_mode="welcome",
+                 sqlite=None, input_dynflow=None):
         """Initialize the TUI application.
 
         Args:
@@ -877,6 +878,8 @@ class DynflowTUI(App):
             conf: Configuration object
             show_welcome: If True, show welcome screen first
             initial_mode: Initial mode to start with (welcome/tasks/httpd)
+            sqlite: OutputSQLite instance for data import
+            input_dynflow: InputDynflow instance for reading CSV files
         """
         super().__init__()
         self.db = db
@@ -884,10 +887,27 @@ class DynflowTUI(App):
         self.show_welcome = show_welcome
         self.initial_mode = initial_mode
         self.httpd_server = None
+        self.sqlite = sqlite
+        self.input_dynflow = input_dynflow
+        self.import_stats = None
 
     def on_mount(self) -> None:
         """Mount the initial screen."""
-        if self.show_welcome:
+        # If we need to import data, show loading screen first
+        if self.conf.writesql and self.sqlite and self.input_dynflow:
+            from .loading import LoadingScreen
+            loading_screen = LoadingScreen()
+            self.install_screen(loading_screen, "loading")
+            self.push_screen("loading")
+            # Start import in background worker
+            self.run_worker(
+                self._import_data_worker,
+                name="import_data",
+                exclusive=True,
+                exit_on_error=False,
+                thread=True
+            )
+        elif self.show_welcome:
             # Show welcome screen with mode selection
             self.install_screen(WelcomeScreen(), "welcome")
             self.install_screen(
@@ -951,3 +971,115 @@ class DynflowTUI(App):
 
         # Switch to httpd screen
         self.switch_screen("httpd")
+
+    def _import_data_worker(self) -> None:
+        """Import CSV data into SQLite with progress updates (runs in worker thread)."""
+        import time
+        from dynflowbrowser.lib.outputsqlite import OutputSQLite
+
+        stats = {}
+
+        try:
+            # Create SQLite connection in this worker thread
+            sqlite_worker = OutputSQLite(self.conf)
+
+            # Import each data type with progress
+            for dtype in ['tasks', 'plans', 'actions', 'steps']:
+                self.call_from_thread(
+                    self._update_loading_status,
+                    f"Reading {dtype}..."
+                )
+                dynflow = self.input_dynflow.read_dynflow(dtype)
+
+                def progress_callback(current, total):
+                    self.call_from_thread(
+                        self._update_loading_progress,
+                        dtype, current, total
+                    )
+
+                result = sqlite_worker.write(dtype, dynflow, progress_callback)
+                stats[dtype] = result
+
+            # Create indexes
+            self.call_from_thread(
+                self._update_loading_status,
+                "Creating database indexes..."
+            )
+            self.call_from_thread(
+                self._update_loading_progress,
+                "indexes", 0, 100
+            )
+            sqlite_worker.create_indexes()
+            self.call_from_thread(
+                self._update_loading_progress,
+                "indexes", 100, 100
+            )
+
+            # Close worker connection
+            sqlite_worker.close()
+
+            # Small delay to show completion
+            time.sleep(0.5)
+
+            # Store stats and switch to welcome screen
+            self.import_stats = stats
+            self.call_from_thread(self._switch_to_welcome)
+
+        except Exception as e:
+            import traceback
+            error_msg = f"{e}\n{traceback.format_exc()}"
+            self.call_from_thread(
+                self._update_loading_status,
+                f"[bold red]Error: {error_msg}[/bold red]"
+            )
+            time.sleep(5)
+            # Still try to switch to welcome on error
+            self.call_from_thread(self._switch_to_welcome)
+
+    def _switch_to_welcome(self) -> None:
+        """Switch to welcome screen after import completes."""
+        # Switch to welcome screen
+        self.install_screen(WelcomeScreen(), "welcome")
+        self.install_screen(
+            TasksScreen(self.db, self.conf, show_welcome=True),
+            "tasks"
+        )
+        self.switch_screen("welcome")
+
+        # Update welcome screen with stats
+        if self.import_stats:
+            self._update_welcome_stats()
+
+    def _update_loading_status(self, message: str) -> None:
+        """Update loading screen status message.
+
+        Args:
+            message: Status message to display
+        """
+        try:
+            loading_screen = self.get_screen("loading")
+            loading_screen.update_status(message)
+        except Exception:
+            pass
+
+    def _update_loading_progress(self, dtype: str, current: int, total: int) -> None:
+        """Update loading screen progress bar.
+
+        Args:
+            dtype: Data type (tasks, plans, actions, steps, indexes)
+            current: Current progress
+            total: Total items
+        """
+        try:
+            loading_screen = self.get_screen("loading")
+            loading_screen.update_progress(dtype, current, total)
+        except Exception:
+            pass
+
+    def _update_welcome_stats(self) -> None:
+        """Update welcome screen with import statistics."""
+        try:
+            welcome_screen = self.get_screen("welcome")
+            welcome_screen.update_import_stats(self.import_stats)
+        except Exception:
+            pass

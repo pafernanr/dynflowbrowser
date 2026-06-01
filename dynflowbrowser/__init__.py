@@ -82,16 +82,10 @@ class DynflowBrowser:
                     self.conf.dynflowdata['includedUUID'].append(
                         dline[headers.index('external_id')]
                     )
-        # Write Tasks to SQLite
-        if self.conf.writesql:
-            for d in ['tasks', 'plans', 'actions', 'steps']:
-                dynflow = self.input_dynflow.read_dynflow(d)
-                sqlite.write(d, dynflow)
-            # Create indexes after all data is inserted for better performance
-            sqlite.create_indexes()
-
-        # Route to appropriate UI based on flags
-        # All interfaces now use text UI - either with welcome or direct mode
+        # Route to UI - pass sqlite write responsibility to UI layer
         from dynflowbrowser.lib.ui.text.output import TextOutput
         output = TextOutput(self.conf)
-        output.write()  # Blocking call - runs until user quits
+        output.write(
+            sqlite=sqlite,
+            input_dynflow=self.input_dynflow
+        )  # Blocking call - runs until user quits

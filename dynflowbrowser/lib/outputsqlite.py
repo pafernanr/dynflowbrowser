@@ -1,9 +1,7 @@
-import datetime
 import json
 import sqlite3
 import time
 
-from dynflowbrowser.lib.util import ProgressBarFromFileLines
 from dynflowbrowser.lib.util import Util
 
 
@@ -220,19 +218,27 @@ class OutputSQLite:
         else:
             print(f"ERROR: Unknown table '{dtype}'")
 
-    def write(self, dtype, csv):
-        pb = ProgressBarFromFileLines()
+    def write(self, dtype, csv, progress_callback=None):
+        """Write CSV data to SQLite with optional progress callback.
+
+        Args:
+            dtype: Type of data (tasks, plans, actions, steps)
+            csv: CSV data rows
+            progress_callback: Optional callback(current, total) for progress updates
+
+        Returns:
+            dict: Statistics about the write operation
+        """
         datefields = self.conf.dynflowdata[dtype]['dates']
         jsonfields = self.conf.dynflowdata[dtype]['json']
         headers = self.conf.dynflowdata[dtype]['headers']
         multi = []
-        pb.all_entries = len(csv)
-        pb.start_time = datetime.datetime.now()
         start_time = time.time()
         myid = False
-        batch_size = 5000  # Increased from 1000 for better performance
-        progress_update_freq = 1000  # Update progress bar every 1000 rows
+        batch_size = 5000
+        progress_update_freq = 100  # Update progress more frequently
         last_index = 0
+        total_entries = len(csv)
 
         # Begin single transaction for entire write
         self.execute("BEGIN TRANSACTION")
@@ -278,14 +284,18 @@ class OutputSQLite:
                     self.insert_multi(dtype, multi)
                     multi = []
 
-                # Update progress bar less frequently
-                if i % progress_update_freq == 0:
-                    pb.print_bar(i)
+                # Update progress callback
+                if progress_callback and i % progress_update_freq == 0:
+                    progress_callback(i, total_entries)
 
         # Insert remaining records
         if len(multi) > 0:
             self.insert_multi(dtype, multi)
             multi = []
+
+        # Final progress update
+        if progress_callback:
+            progress_callback(total_entries, total_entries)
 
         # Commit the transaction
         self.commit()
@@ -295,9 +305,13 @@ class OutputSQLite:
             speed = round(last_index/seconds)
         else:
             speed = 0
-        print("  - Parsed " + str(last_index) + " " + dtype + " in "
-              + self.util.seconds_to_str(seconds)
-              + " (" + str(speed) + " lines/second)")
+
+        return {
+            'dtype': dtype,
+            'rows': last_index,
+            'seconds': seconds,
+            'speed': speed
+        }
 
     def parse_action_output(self, txt):
         txt = txt.replace("\\r", "").replace("\\n", "\n")

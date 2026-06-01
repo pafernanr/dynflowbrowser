@@ -79,6 +79,14 @@ class WelcomeScreen(Screen):
         text-align: center;
         margin: 1 0 0 0;
     }
+
+    #import-stats {
+        width: 100%;
+        height: auto;
+        text-align: center;
+        margin: 1 0 0 0;
+        color: $text-muted;
+    }
     """
 
     def __init__(self):
@@ -129,6 +137,7 @@ class WelcomeScreen(Screen):
                                 id="httpd-btn"
                             )
                     yield Static("", id="server-status")
+                    yield Static("", id="import-stats")
 
         yield Footer()
 
@@ -187,3 +196,25 @@ class WelcomeScreen(Screen):
     def action_next_button(self) -> None:
         """Focus next button."""
         self.screen.focus_next()
+
+    def update_import_stats(self, stats: dict) -> None:
+        """Update the import statistics display.
+
+        Args:
+            stats: Dictionary with import statistics per data type
+        """
+        try:
+            stats_widget = self.query_one("#import-stats", Static)
+            if stats:
+                from rich.text import Text
+                text = Text()
+                text.append("Dynflow Data: ", style="dim")
+                parts = []
+                for dtype in ['tasks', 'plans', 'actions', 'steps']:
+                    if dtype in stats:
+                        s = stats[dtype]
+                        parts.append(f"{s['rows']} {dtype}")
+                text.append(" | ".join(parts), style="green")
+                stats_widget.update(text)
+        except Exception:
+            pass

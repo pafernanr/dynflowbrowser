@@ -23,30 +23,22 @@ class TextOutput(BaseOutput):
         super().__init__(conf)
         self.db = OutputSQLite(conf)
 
-    def write(self):
+    def write(self, sqlite=None, input_dynflow=None):
         """Launch interactive Textual TUI application.
 
         This is a blocking call that runs until the user quits the TUI.
-        """
-        # Determine initial mode
-        if self.conf.args.httpd:
-            # Start directly in httpd mode
-            initial_mode = "httpd"
-            show_welcome = False
-        elif self.conf.args.text_ui:
-            # Start directly in text/tasks mode
-            initial_mode = "tasks"
-            show_welcome = False
-        else:
-            # No explicit interface - show welcome screen
-            initial_mode = "welcome"
-            show_welcome = True
 
+        Args:
+            sqlite: OutputSQLite instance for data import
+            input_dynflow: InputDynflow instance for reading CSV files
+        """
         app = DynflowTUI(
             self.db,
             self.conf,
-            show_welcome=show_welcome,
-            initial_mode=initial_mode
+            show_welcome=True,
+            initial_mode="welcome",
+            sqlite=sqlite,
+            input_dynflow=input_dynflow
         )
         app.run()
 

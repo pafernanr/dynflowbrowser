@@ -12,6 +12,7 @@ setuptools.setup(
     name='dynflowbrowser',
     version='0.0.0',
     setup_requires=['Jinja2', 'pytz', 'textual', 'pandas'],
+    install_requires=['Jinja2', 'pytz', 'textual', 'pandas'],
     scripts=[
         'dynflowbrowser/bin/__init__.py',
         'dynflowbrowser_export_tasks/bin/__init__.py'],

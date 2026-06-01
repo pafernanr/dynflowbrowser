@@ -37,6 +37,10 @@ DynflowBrowser provides powerful interfaces to analyze Foreman/Satellite task ex
 - **Timezone Support**: Dynflow and Pulp UTC dates automatically converted to sosreport timezone
 - **Readable Formatting**: Indented fields for Actions & Steps with syntax highlighting
 
+### TODO
+- **Searchbox**: Allow to filter and search
+- **Liveconnect**: Browse a live Foreman PostgreSQL
+
 ## Screenshots
 
 | Tasks list | Task details | Terminal |
@@ -52,13 +56,6 @@ pip install dynflowbrowser
 
 ### Using prebuilt packages
 Download from [Latest Release](https://github.com/pafernanr/dynflowbrowser/releases/latest)
-
-### From source
-```bash
-git clone https://github.com/pafernanr/dynflowbrowser.git
-cd dynflowbrowser
-pip install -e .
-```
 
 ## Requirements
 
@@ -101,30 +98,3 @@ dynflowbrowser/
 │   └── outputsqlite.py
 └── plugins/          # Plugin system
 ```
-
-## Screenshots
-
-### Welcome Screen
-```
-  _____              ______ _               ____
- |  __ \            |  ____| |             |  _ \
- | |  | |_   _ _ __ | |__  | | _____      _| |_) |_ __ _____      _____  ___ _ __
- | |  | | | | | '_ \|  __| | |/ _ \ \ /\ / /  _ <| '__/ _ \ \ /\ / / __|/ _ \ '__|
- | |__| | |_| | | | | |    | | (_) \ V  V /| |_) | | | (_) \ V  V /\__ \  __/ |
- |_____/ \__, |_| |_|_|    |_|\___/ \_/\_/ |____/|_|  \___/ \_/\_/ |___/\___|_|
-          __/ |
-         |___/
-
-Select the Interface Mode:
-    [ Terminal Browser ]  [ HTTPD Service ]
-```
-
-### Terminal Browser
-- Task list with hierarchical view
-- Expandable failed tasks showing actions and steps
-- Real-time filtering and stats
-
-### HTTPD Service
-- Connection info (Direct HTTP / SSH Tunnel)
-- Server control (Start/Stop)
-- Live server logs

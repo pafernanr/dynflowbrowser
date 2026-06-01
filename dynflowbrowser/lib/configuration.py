@@ -1,6 +1,5 @@
 import argparse
 import os
-import shutil
 
 from dynflowbrowser.lib.util import Util
 
@@ -30,7 +29,16 @@ class Conf:
 
         self.parser = argparse.ArgumentParser(
             description="Get sosreport dynflow files and generates user"
-            + " friendly html pages for tasks, plans, actions and steps"
+            + " friendly html pages for tasks, plans, actions and steps",
+            epilog="""
+Examples:
+  # Combine state, result and time filters
+  %(prog)s --state stopped --result error --task-days 10
+
+  # Complex search query (AND / OR operators)
+  %(prog)s --search="label ~ Sync AND state = stopped AND result = error"
+            """,
+            formatter_class=argparse.RawDescriptionHelpFormatter
             )
         self.parser.add_argument(
             '-v',
@@ -39,35 +47,37 @@ class Conf:
             version=self.get_version(),
             )
         self.parser.add_argument(
-            '-a',
-            '--all',
-            dest='showall',
-            help='Parse all. By default only unsuccess plans are parsed.',
-            default=False,
-            action='store_true'
+            '--search',
+            dest='search',
+            help='Search query using foreman-rake syntax. '
+                 'Supports operators: =, !=, ~, !~, >, <, >=, <= '
+                 'and connectors: AND, OR',
+            default=None
             )
         self.parser.add_argument(
-            '-f',
-            '--from',
-            dest='date_from',
-            help='Parse only Plans that were running from this datetime.',
-            default='1974-04-10',
-            type=self.valid_date
+            '--state',
+            dest='state',
+            help='Filter by task state. '
+                 'Valid: paused, pending, planned, planning, running, stopped',
+            choices=['paused', 'pending', 'planned',
+                     'planning', 'running', 'stopped'],
+            default=None
             )
         self.parser.add_argument(
-            '-t',
-            '--to',
-            dest='date_to',
-            help='Parse only Plans that were running up to this datetime.',
-            default='2999-01-01',
-            type=self.valid_date
+            '--result',
+            dest='result',
+            help='Filter by task result. '
+                 'Valid: error, pending, success, warning',
+            choices=['error', 'pending', 'success', 'warning'],
+            default=None
             )
         self.parser.add_argument(
-            '-l',
-            '--last',
-            dest='last_n_days',
-            help='Parse only last N days. Overrides `--from` and `--to`.',
-            type=int
+            '--task-days',
+            dest='task_days',
+            help='Import only tasks from last N days. '
+                 'Same as foreman-rake TASK_DAYS parameter.',
+            type=int,
+            default=None
             )
         self.parser.add_argument(
             '-o',
@@ -94,14 +104,30 @@ class Conf:
         self.parser.add_argument(
             'sosreport_path',
             help='Path to sos report folder. Default is current path.',
-            default=self.cwd,
-            type=self.valid_sosreport_path,
             nargs='?'
             )
         self.args = self.parser.parse_args()
 
+        # Validate sosreport_path after parsing
+        if self.args.sosreport_path is None:
+            self.args.sosreport_path = self.cwd
+        else:
+            # Validate the provided path
+            validated_path = self.valid_sosreport_path(
+                self.args.sosreport_path
+            )
+            self.args.sosreport_path = validated_path
+
         # Track if user explicitly specified an interface
         self.args.explicit_interface = self.args.httpd or self.args.text_ui
+
+        # Backward compatibility: showall is True when no filters are specified
+        self.args.showall = (
+            self.args.search is None and
+            self.args.state is None and
+            self.args.result is None and
+            self.args.task_days is None
+        )
 
         self.set_sos_details()
         self.args.output_path = (
@@ -119,7 +145,8 @@ class Conf:
             # Show relative path for cleaner output
             rel_path = os.path.relpath(self.dbfile, self.cwd)
             print(f"\nDatabase file already exists: {rel_path}")
-            response = input("Reuse existing database? [y/N]: ").strip().lower()
+            prompt = "Reuse existing database? [y/N]: "
+            response = input(prompt).strip().lower()
             if response == 'y':
                 # Reuse existing database, skip data import
                 self.writesql = False
@@ -155,6 +182,9 @@ class Conf:
                 f"{fullpath!r} is not a valid path.")
 
     def valid_sosreport_path(self, path):
+        # If it's current directory (default), just return it
+        if path == self.cwd or path == '.':
+            return path
         p = path + "/sos_commands/foreman/dynflow_schema_info"
         if os.path.exists(p):
             return path
@@ -162,15 +192,6 @@ class Conf:
             raise argparse.ArgumentTypeError(
                 f"{p!r} doesn't exist.")
 
-    def valid_date(self, d):
-        valid = Util("W").valid_date_formats
-        for v in valid:
-            try:
-                return self.util.date_from_string(d)
-            except ValueError:
-                pass
-        raise argparse.ArgumentTypeError(
-            f"not a valid date: {d!r}. Valid formats: {str(valid)}")
 
     def parse_ram_info(self, free_output):
         """Parse free command output and return memory/swap in GB."""

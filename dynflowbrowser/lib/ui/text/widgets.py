@@ -247,8 +247,8 @@ class TasksDataTable(DataTable):
         )
         self.add_column("Started At", key="started", width=17)
         self.add_column("Ended At", key="ended", width=17)
-        self.add_column("S", key="state", width=1)
-        self.add_column("R", key="result", width=1)
+        self.add_column("State", key="state", width=9)
+        self.add_column("Result", key="result", width=7)
 
         # Load task data
         self._load_tasks()
@@ -364,27 +364,25 @@ class TasksDataTable(DataTable):
         started_text = started if started else ""
         ended_text = ended if ended else ""
 
-        # Color-code state (first letter only)
-        state_letter = state[0].upper() if state else ""
+        # Color-code state (full word)
         if state == "stopped":
-            state_text = Text(state_letter, style="red")
+            state_text = Text(state, style="red")
         elif state == "running":
-            state_text = Text(state_letter, style="cyan")
+            state_text = Text(state, style="cyan")
         elif state == "paused":
-            state_text = Text(state_letter, style="yellow")
+            state_text = Text(state, style="yellow")
         else:
-            state_text = Text(state_letter)
+            state_text = Text(state if state else "")
 
-        # Color-code result (first letter only)
-        result_letter = result[0].upper() if result else ""
+        # Color-code result (full word)
         if result == "error":
-            result_text = Text(result_letter, style="bold red")
+            result_text = Text(result, style="bold red")
         elif result == "warning":
-            result_text = Text(result_letter, style="bold yellow")
+            result_text = Text(result, style="bold yellow")
         elif result == "success":
-            result_text = Text(result_letter, style="bold green")
+            result_text = Text(result, style="bold green")
         else:
-            result_text = Text(result_letter)
+            result_text = Text(result if result else "")
 
         # Add row
         row_key = f"task_{task_id}"
@@ -816,7 +814,7 @@ class ActionsTreeTable(DataTable):
         self.add_column("Ended At", key="ended", width=17)
         self.add_column("RealT", key="real_time", width=None)
         self.add_column("ExecT", key="exec_time", width=None)
-        self.add_column("Sta", key="status", width=3)
+        self.add_column("Status", key="status", width=9)
 
         # Fetch actions with steps
         self._load_actions()
@@ -986,16 +984,15 @@ class ActionsTreeTable(DataTable):
         if output and output != "{}":
             action_text.append(" !", style="bold red")
 
-        # Color-code status (first 3 chars)
-        status_short = state[:3] if state else ""
+        # Color-code status (full word)
         if state == "error":
-            status_text = Text(status_short, style="bold red")
+            status_text = Text(state, style="bold red")
         elif state == "warning":
-            status_text = Text(status_short, style="bold yellow")
+            status_text = Text(state, style="bold yellow")
         elif state == "success":
-            status_text = Text(status_short, style="bold green")
+            status_text = Text(state, style="bold green")
         else:
-            status_text = Text(status_short)
+            status_text = Text(state if state else "")
 
         row_key = f"action_{action_id}"
         self.add_row(
@@ -1081,16 +1078,15 @@ class ActionsTreeTable(DataTable):
         if error:
             step_text.append(" !", style="bold red")
 
-        # Color-code status (first 3 chars)
-        status_short = state[:3] if state else ""
+        # Color-code status (full word)
         if state == "error":
-            status_text = Text(status_short, style="bold red")
+            status_text = Text(state, style="bold red")
         elif state == "warning":
-            status_text = Text(status_short, style="bold yellow")
+            status_text = Text(state, style="bold yellow")
         elif state == "success":
-            status_text = Text(status_short, style="bold green")
+            status_text = Text(state, style="bold green")
         else:
-            status_text = Text(status_short)
+            status_text = Text(state if state else "")
 
         row_key = f"step_{action_id}_{step_id}"
         self.add_row(

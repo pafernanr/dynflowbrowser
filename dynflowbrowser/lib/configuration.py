@@ -36,6 +36,7 @@ Examples:
   %(prog)s --state stopped --result error --task-days 10
 
   # Complex search query (AND / OR operators)
+  %(prog)s --search="result != success" --task-days 3
   %(prog)s --search="label ~ Sync AND state = stopped AND result = error"
             """,
             formatter_class=argparse.RawDescriptionHelpFormatter
@@ -121,6 +122,7 @@ Examples:
         os.makedirs(self.args.output_path, exist_ok=True)
 
         self.dbfile = self.args.output_path + "/dynflowbrowser.db"
+        self.argsfile = self.args.output_path + "/execution_args.txt"
 
         # Check if database file already exists and ask user
         if os.path.exists(self.dbfile) and self.writesql:
@@ -142,6 +144,43 @@ Examples:
                     if os.path.exists(wal_file):
                         os.remove(wal_file)
                 print("Overwriting database...")
+                # Also remove args file when overwriting
+                if os.path.exists(self.argsfile):
+                    os.remove(self.argsfile)
+
+        # Save execution arguments to file only when creating new DB
+        if self.writesql:
+            self._save_execution_args()
+
+    def _save_execution_args(self):
+        """Save execution arguments to a file."""
+        try:
+            with open(self.argsfile, 'w', encoding='utf-8') as f:
+                f.write("Execution Arguments:\n")
+                f.write("===================\n\n")
+
+                # Build filter description
+                filters = []
+                if self.args.search:
+                    filters.append(f"Search: {self.args.search}")
+                if self.args.state:
+                    filters.append(f"State: {self.args.state}")
+                if self.args.result:
+                    filters.append(f"Result: {self.args.result}")
+                if self.args.task_days:
+                    filters.append(f"Task Days: {self.args.task_days}")
+
+                if filters:
+                    f.write("Filters:\n")
+                    for filter_item in filters:
+                        f.write(f"  - {filter_item}\n")
+                else:
+                    f.write("Filters: None (showing all tasks)\n")
+
+                f.write(f"\nOutput Path: {self.args.output_path}\n")
+                f.write(f"SOS Report: {self.args.sosreport_path}\n")
+        except Exception:
+            pass  # Silently ignore errors saving args file
 
     def get_version(self):
         fname = os.path.join(os.path.dirname(__file__),

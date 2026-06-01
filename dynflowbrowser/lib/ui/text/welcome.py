@@ -12,12 +12,15 @@ from textual.widgets import Button
 from textual.widgets import Footer
 from textual.widgets import Static
 
+from .widgets import LogoBanner
+
 
 class WelcomeScreen(Screen):
     """Welcome screen with interface selection."""
 
     BINDINGS = [
-        Binding("q", "app.quit", "Quit", priority=True),
+        Binding("q", "request_quit", "Quit", priority=True),
+        Binding("escape", "request_quit", "Quit", show=True),
         Binding("t", "start_text", "Text"),
         Binding("h", "start_httpd", "Httpd"),
         Binding("left", "previous_button", "", show=False),
@@ -26,29 +29,26 @@ class WelcomeScreen(Screen):
 
     CSS = """
     WelcomeScreen {
-        align: center middle;
         background: $surface;
     }
 
-    #ascii-art {
-        width: auto;
-        height: auto;
-        text-style: bold;
-        color: $accent;
-        margin: 0 0 1 0;
+    #main-content {
+        align: center middle;
+        height: 1fr;
     }
 
-    #version-label {
-        width: 100%;
-        text-align: left;
-        color: $text-muted;
-        margin: 0 0 1 2;
+    LogoBanner {
+        margin: 0;
+    }
+
+    #spacer-1, #spacer-2 {
+        height: 1;
     }
 
     #mode-label {
         width: 100%;
         text-align: center;
-        margin: 1 0;
+        margin: 0;
     }
 
     #mode-label.blink {
@@ -59,7 +59,7 @@ class WelcomeScreen(Screen):
         width: 100%;
         height: auto;
         align: center middle;
-        margin: 2 0;
+        margin: 1 0;
     }
 
     Button {
@@ -77,53 +77,46 @@ class WelcomeScreen(Screen):
         height: auto;
         min-height: 1;
         text-align: center;
-        margin: 1 0 0 0;
+        margin: 0;
+    }
+
+    #bottom-info {
+        dock: bottom;
+        height: 3;
+        width: 100%;
+        background: $surface;
+        padding: 0 0 1 0;
+    }
+
+    #exec-args {
+        width: 100%;
+        height: 1;
+        text-align: center;
+        margin: 0;
+        padding: 0;
+        color: $text-muted;
     }
 
     #import-stats {
         width: 100%;
-        height: auto;
+        height: 1;
         text-align: center;
-        margin: 1 0 0 0;
+        margin: 0;
+        padding: 0;
         color: $text-muted;
     }
     """
 
-    def __init__(self):
-        """Initialize welcome screen."""
-        super().__init__()
-        # Get version from config
-        fname = os.path.join(
-            os.path.dirname(os.path.dirname(
-                os.path.dirname(os.path.dirname(__file__))
-            )),
-            '__VERSION__'
-        )
-        with open(fname, encoding="utf-8") as f:
-            self.version = f.read().strip()
-
     def compose(self) -> ComposeResult:
         """Compose the welcome screen."""
-        # ASCII art for "DynFlowBrowser"
-        ascii_art = """
-
-
-  _____              ______ _               ____
- |  __ \\            |  ____| |             |  _ \\
- | |  | |_   _ _ __ | |__  | | _____      _| |_) |_ __ _____      _____  ___ _ __
- | |  | | | | | '_ \\|  __| | |/ _ \\ \\ /\\ / /  _ <| '__/ _ \\ \\ /\\ / / __|/ _ \\ '__|
- | |__| | |_| | | | | |    | | (_) \\ V  V /| |_) | | | (_) \\ V  V /\\__ \\  __/ |
- |_____/ \\__, |_| |_|_|    |_|\\___/ \\_/\\_/ |____/|_|  \\___/ \\_/\\_/ |___/\\___|_|
-          __/ |
-         |___/"""  # noqa: E501
-
-        with Center():
+        with Center(id="main-content"):
             with Middle():
                 with Vertical():
-                    yield Static(ascii_art, id="ascii-art")
-                    yield Static(self.version, id="version-label")
+                    yield LogoBanner()
+                    yield Static("", id="spacer-1")
+                    yield Static("", id="spacer-2")
                     yield Static(
-                        "Choose Your Browser:",
+                        "Choose how to browse",
                         id="mode-label"
                     )
                     with Center():
@@ -137,7 +130,11 @@ class WelcomeScreen(Screen):
                                 id="httpd-btn"
                             )
                     yield Static("", id="server-status")
-                    yield Static("", id="import-stats")
+
+        # Bottom info lines - docked at bottom
+        with Vertical(id="bottom-info"):
+            yield Static("", id="exec-args")
+            yield Static("", id="import-stats")
 
         yield Footer()
 
@@ -197,6 +194,10 @@ class WelcomeScreen(Screen):
         """Focus next button."""
         self.screen.focus_next()
 
+    def action_request_quit(self) -> None:
+        """Request quit confirmation."""
+        self.app.action_request_quit()
+
     def update_import_stats(self, stats: dict) -> None:
         """Update the import statistics display.
 
@@ -217,4 +218,45 @@ class WelcomeScreen(Screen):
                 text.append(" | ".join(parts), style="green")
                 stats_widget.update(text)
         except Exception:
+            pass
+
+    def update_exec_args(self, argsfile: str) -> None:
+        """Update the execution arguments display.
+
+        Args:
+            argsfile: Path to execution arguments file
+        """
+        try:
+            from rich.text import Text
+
+            args_widget = self.query_one("#exec-args", Static)
+            if not os.path.exists(argsfile):
+                return
+
+            with open(argsfile, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+
+            # Extract filter lines
+            filters = []
+            in_filters = False
+            for line in lines:
+                line = line.strip()
+                if line.startswith("Filters:"):
+                    in_filters = True
+                    # Check if "None" is in the same line
+                    if "None" in line:
+                        filters.append("No filters")
+                        break
+                elif in_filters and line.startswith("-"):
+                    filters.append(line[2:].strip())  # Remove "- " prefix
+                elif in_filters and line and not line.startswith("-"):
+                    break
+
+            if filters:
+                text = Text()
+                text.append("Filters: ", style="dim")
+                text.append(" | ".join(filters), style="cyan")
+                args_widget.update(text)
+        except Exception:
+            # Silently fail
             pass

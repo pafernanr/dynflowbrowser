@@ -119,8 +119,8 @@
                 </div>
                 <div class="task-col-timestamp">Started At</div>
                 <div class="task-col-timestamp">Ended At</div>
-                <div class="task-col-state">State</div>
                 <div class="task-col-result">Result</div>
+                <div class="task-col-state">State</div>
             </div>
 
             <div class="task-list-scrollable">
@@ -160,8 +160,8 @@
                     </div>
                     <div class="task-timestamp">{{t[6][:-7]}}</div>
                     <div class="task-timestamp">{{t[7][:-7]}}</div>
-                    <div class="task-state">{{t[4]}}</div>
                     <span class="status-badge status-{{t[5]}}">{{t[5]}}</span>
+                    <div class="task-state state-{{t[4]}}">{{t[4]}}</div>
                 </div>
 
                 {% if t[1] in child_tasks %}
@@ -185,8 +185,8 @@
                             </div>
                             <div class="task-timestamp">{{child[6][:-7]}}</div>
                             <div class="task-timestamp">{{child[7][:-7]}}</div>
-                            <div class="task-state">{{child[4]}}</div>
                             <span class="status-badge status-{{child[5]}}">{{child[5]}}</span>
+                            <div class="task-state state-{{child[4]}}">{{child[4]}}</div>
                         </div>
                     </div>
                     {% endfor %}

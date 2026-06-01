@@ -6,6 +6,7 @@ from textual.containers import Horizontal
 from textual.containers import VerticalScroll
 from textual.screen import ModalScreen
 from textual.screen import Screen
+from textual.widgets import Button
 from textual.widgets import Footer
 from textual.widgets import Header
 from textual.widgets import Static
@@ -24,11 +25,9 @@ class TasksScreen(Screen):
     BINDINGS = [
         Binding("q", "app.quit", "Quit", priority=True),
         Binding("escape", "back_to_welcome", "Back", show=True),
-        Binding("s", "toggle_stats", "Stats", show=True),
+        Binding("s", "toggle_stats", "Dynflow/Pulp Stats", show=True),
         Binding("t", "toggle_columns", "Toggle Columns", show=True),
-        Binding("left", "collapse_task", "Collapse", show=True),
-        Binding("right", "expand_task", "Expand", show=True),
-        Binding("l", "show_httpd_modal", "HTTP Access", show=True),
+        Binding("h", "show_httpd_modal", "HTTP Access", show=True),
         Binding("d", "app.toggle_dark", "Dark Mode", show=False),
     ]
 
@@ -55,7 +54,7 @@ class TasksScreen(Screen):
         self.action_view_actions()
 
     def on_key(self, event) -> None:
-        """Handle key presses for navigation and expand/collapse.
+        """Handle key presses for navigation.
 
         Args:
             event: The key event
@@ -68,37 +67,27 @@ class TasksScreen(Screen):
                 self.action_view_actions()
                 event.prevent_default()
                 event.stop()
-        # Left/Right for expand/collapse
-        elif event.key == "right":
-            if hasattr(table, 'expand_task'):
-                table.expand_task()
-                event.prevent_default()
-                event.stop()
-        elif event.key == "left":
-            if hasattr(table, 'collapse_task'):
-                table.collapse_task()
-                event.prevent_default()
-                event.stop()
+        # Left/Right now scroll horizontally (default DataTable behavior)
 
     def compose(self) -> ComposeResult:
         """Create child widgets."""
         yield Header(show_clock=False)
         version = self.conf.sos.get('version', '0')
         yield HeaderSeparator(version)
+
+        # Stats panel (initially hidden) - expands below separator
+        yield StatsPanel(
+            self.db, self.conf, id="stats_panel", classes="hidden"
+        )
+
         yield HostDetailsHeader(self.conf.sos)
 
-        with Horizontal(id="main_content"):
-            # Stats panel (initially hidden)
-            yield StatsPanel(
-                self.db, self.conf, id="stats_panel", classes="hidden"
-            )
-
-            # Tasks table
-            yield TasksDataTable(
-                self.db,
-                self.conf,
-                id="tasks_table"
-            )
+        # Tasks table
+        yield TasksDataTable(
+            self.db,
+            self.conf,
+            id="tasks_table"
+        )
 
         yield Footer()
 
@@ -146,18 +135,6 @@ class TasksScreen(Screen):
                 ActionsScreen(self.db, self.conf, plan_uuid)
             )
 
-    def action_expand_task(self) -> None:
-        """Expand current task to show children."""
-        table = self.query_one(TasksDataTable)
-        if hasattr(table, 'expand_task'):
-            table.expand_task()
-
-    def action_collapse_task(self) -> None:
-        """Collapse current task to hide children."""
-        table = self.query_one(TasksDataTable)
-        if hasattr(table, 'collapse_task'):
-            table.collapse_task()
-
     def action_show_httpd_modal(self) -> None:
         """Show HTTP server access modal."""
         self.app.push_screen(HttpdAccessModal(self.conf, plan_uuid=None))
@@ -171,14 +148,12 @@ class ActionsScreen(Screen):
         Binding("q", "app.quit", "Quit", priority=True),
         Binding("escape", "app.pop_screen", "Back", show=True),
         # Stats group - separator (Textual adds space before automatically)
-        Binding("s", "toggle_stats", "Stats", show=True,
+        Binding("s", "toggle_stats", "Dynflow/Pulp Stats", show=True,
                 key_display="|  s"),
-        Binding("left", "collapse_action", "◀", show=True),
-        Binding("right", "expand_action", "▶", show=True),
         # Detail menu - separator
-        Binding("enter", "show_detail_menu", "Details", show=True,
-                key_display="|  enter"),
-        Binding("l", "show_httpd_modal", "HTTP Access", show=True),
+        Binding("d", "show_detail_menu", "Details", show=True,
+                key_display="|  d"),
+        Binding("h", "show_httpd_modal", "HTTP Access", show=True),
     ]
 
     def __init__(self, db, conf, plan_uuid):
@@ -203,29 +178,28 @@ class ActionsScreen(Screen):
         version = self.conf.sos.get('version', '0')
         yield HeaderSeparator(version)
 
+        # Stats panel (initially hidden) - expands below separator
+        from .widgets import ActionStatsPanel
+        yield ActionStatsPanel(
+            self.db,
+            self.conf,
+            self.plan_uuid,
+            id="action_stats_panel",
+            classes="hidden"
+        )
+
         # Action details header (Task, Label, ID, Caller, Plan)
         from .widgets import ActionDetailsHeader
         yield ActionDetailsHeader(self.db, self.plan_uuid, id="action_details")
 
-        with Horizontal(id="actions_main"):
-            # Stats panel (initially hidden)
-            from .widgets import ActionStatsPanel
-            yield ActionStatsPanel(
-                self.db,
-                self.conf,
-                self.plan_uuid,
-                id="action_stats_panel",
-                classes="hidden"
-            )
-
-            # Actions tree view
-            from .widgets import ActionsTreeTable
-            yield ActionsTreeTable(
-                self.db,
-                self.conf,
-                plan_uuid=self.plan_uuid,
-                id="actions_tree"
-            )
+        # Actions tree view
+        from .widgets import ActionsTreeTable
+        yield ActionsTreeTable(
+            self.db,
+            self.conf,
+            plan_uuid=self.plan_uuid,
+            id="actions_tree"
+        )
 
         yield Footer()
 
@@ -311,10 +285,30 @@ class ActionsScreen(Screen):
         Args:
             event: The key event
         """
+        table = self.query_one("#actions_tree")
+
+        # Enter expands/collapses nodes
         if event.key == "enter":
-            self.action_show_detail_menu()
-            event.prevent_default()
-            event.stop()
+            if table.cursor_row is None or table.cursor_row >= len(table.row_keys):
+                return
+
+            row_key = table.row_keys[table.cursor_row]
+            if row_key not in table.row_data:
+                return
+
+            row_data = table.row_data[row_key]
+
+            # Only expand/collapse actions (not steps)
+            if row_data['type'] == 'action':
+                action_id = row_data['action_id']
+                # Toggle expansion
+                if action_id in table.expanded_actions:
+                    table.collapse_action()
+                else:
+                    table.expand_action()
+                event.prevent_default()
+                event.stop()
+        # Left/Right now scroll horizontally (default DataTable behavior)
 
     def update_bindings(self, row_type: str = None) -> None:
         """Update current row type for validation.
@@ -624,6 +618,56 @@ class DetailMenuModal(ModalScreen):
         self.app.pop_screen()
 
 
+class QuitModal(ModalScreen):
+    """Modal screen for quit confirmation."""
+
+    BINDINGS = [
+        Binding("escape", "cancel", "Cancel", show=True),
+        Binding("left", "previous_button", "", show=False),
+        Binding("right", "next_button", "", show=False),
+        Binding("enter", "select", "Select", show=True),
+    ]
+
+    def compose(self) -> ComposeResult:
+        """Compose the quit confirmation modal."""
+        from textual.containers import Container
+        with Container(id="quit_container"):
+            yield Static("Quit DynflowBrowser?", id="quit_title")
+            with Container(id="quit_content"):
+                with Horizontal(id="quit_buttons"):
+                    yield Button("Yes", id="quit_yes", variant="error")
+                    yield Button("No", id="quit_no", variant="primary")
+
+    def on_mount(self) -> None:
+        """Focus the Yes button when modal opens."""
+        self.query_one("#quit_yes", Button).focus()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button press."""
+        if event.button.id == "quit_yes":
+            self.dismiss(True)
+        else:
+            self.dismiss(False)
+
+    def action_cancel(self) -> None:
+        """Cancel quit."""
+        self.dismiss(False)
+
+    def action_select(self) -> None:
+        """Select focused button."""
+        focused = self.focused
+        if isinstance(focused, Button):
+            focused.press()
+
+    def action_previous_button(self) -> None:
+        """Focus previous button."""
+        self.focus_previous()
+
+    def action_next_button(self) -> None:
+        """Focus next button."""
+        self.focus_next()
+
+
 class AboutModal(ModalScreen):
     """Modal screen to display project information."""
 
@@ -715,14 +759,9 @@ class DynflowTUI(App):
         padding: 0;
     }
 
-    #main_content, #actions_main {
-        height: 1fr;
-    }
-
     #stats_panel, #action_stats_panel {
-        width: auto;
-        min-width: 50;
-        max-width: 80;
+        width: 100%;
+        height: auto;
         border: solid $primary;
         padding: 0;
         background: $surface;
@@ -730,6 +769,10 @@ class DynflowTUI(App):
 
     #stats_panel.hidden, #action_stats_panel.hidden {
         display: none;
+    }
+
+    #tasks_table, #actions_tree {
+        height: 1fr;
     }
 
     DataTable {
@@ -754,6 +797,41 @@ class DynflowTUI(App):
 
     .warning {
         color: $warning;
+    }
+
+    QuitModal {
+        align: center middle;
+    }
+
+    #quit_container {
+        width: 50;
+        height: auto;
+        background: $surface;
+        border: thick $primary;
+        padding: 0;
+    }
+
+    #quit_title {
+        background: $boost;
+        color: $text;
+        padding: 1;
+        text-align: center;
+        text-style: bold;
+    }
+
+    #quit_content {
+        padding: 1;
+        height: auto;
+    }
+
+    #quit_buttons {
+        width: 100%;
+        height: auto;
+        align: center middle;
+    }
+
+    #quit_buttons Button {
+        margin: 0 1;
     }
 
     AboutModal {
@@ -893,6 +971,9 @@ class DynflowTUI(App):
 
     def on_mount(self) -> None:
         """Mount the initial screen."""
+        # Install quit modal
+        self.install_screen(QuitModal(), "quit")
+
         # If we need to import data, show loading screen first
         if self.conf.writesql and self.sqlite and self.input_dynflow:
             from .loading import LoadingScreen
@@ -908,6 +989,8 @@ class DynflowTUI(App):
                 thread=True
             )
         elif self.show_welcome:
+            # Database was reused - count existing rows
+            self._count_existing_data()
             # Show welcome screen with mode selection
             self.install_screen(WelcomeScreen(), "welcome")
             self.install_screen(
@@ -915,6 +998,9 @@ class DynflowTUI(App):
                 "tasks"
             )
             self.push_screen("welcome")
+            # Update welcome screen with stats
+            if self.import_stats:
+                self._update_welcome_stats()
         elif self.initial_mode == "httpd":
             # Start directly in httpd mode
             self._start_httpd_direct()
@@ -1081,5 +1167,36 @@ class DynflowTUI(App):
         try:
             welcome_screen = self.get_screen("welcome")
             welcome_screen.update_import_stats(self.import_stats)
+            # Also update execution arguments
+            welcome_screen.update_exec_args(self.conf.argsfile)
         except Exception:
             pass
+
+    def _count_existing_data(self) -> None:
+        """Count rows in existing database when reused."""
+        try:
+            stats = {}
+            for dtype in ['tasks', 'plans', 'actions', 'steps']:
+                count = self.db.query(f"SELECT COUNT(*) FROM {dtype}")[0][0]
+                stats[dtype] = {
+                    'dtype': dtype,
+                    'rows': count,
+                    'seconds': 0,
+                    'speed': 0
+                }
+            self.import_stats = stats
+        except Exception:
+            pass
+
+    def action_request_quit(self) -> None:
+        """Show quit confirmation and exit if confirmed."""
+        def check_quit(quit_confirmed: bool) -> None:
+            """Exit if user confirmed quit."""
+            if quit_confirmed:
+                self.exit()
+
+        self.push_screen(QuitModal(), check_quit)
+
+    def action_quit(self) -> None:
+        """Override default quit to show confirmation."""
+        self.action_request_quit()

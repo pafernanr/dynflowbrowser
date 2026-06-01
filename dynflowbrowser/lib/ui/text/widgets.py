@@ -1,5 +1,8 @@
 """Custom Textual widgets for Dynflow TUI."""
 import json
+import os
+from rich.align import Align
+from rich.console import RenderableType
 from rich.table import Table
 from rich.text import Text
 from textual.containers import VerticalScroll
@@ -10,6 +13,68 @@ from dynflowbrowser.lib.ui.shared import ActionHierarchy
 from dynflowbrowser.lib.ui.shared import ActionQueries
 from dynflowbrowser.lib.ui.shared import FormatHelpers
 from dynflowbrowser.lib.ui.shared import StatsQueries
+
+
+class LogoBanner(Static):
+    """ASCII art logo with version, centered with colored background."""
+
+    DEFAULT_CSS = """
+    LogoBanner {
+        width: 100%;
+        height: auto;
+        background: $boost;
+        padding: 0 2;
+    }
+    """
+
+    ASCII_ART = """
+    ____              ______              ____
+   / __ \\__  ______  / __/ /___ _      __/ __ )_________ _      __________  _____
+  / / / / / / / __ \\/ /_/ / __ \\ | /| / / __  / ___/ __ \\ | /| / / ___/ _ \\/ ___/
+ / /_/ / /_/ / / / / __/ / /_/ / |/ |/ / /_/ / /  / /_/ / |/ |/ (__  )  __/ /
+/_____/\\__, /_/ /_/_/ /_/\\____/|__/|__/_____/_/   \\____/|__/|__/____/\\___/_/
+      /____/"""
+
+    def __init__(self, **kwargs):
+        """Initialize logo banner."""
+        super().__init__(**kwargs)
+        # Get version
+        fname = os.path.join(
+            os.path.dirname(os.path.dirname(
+                os.path.dirname(os.path.dirname(__file__))
+            )),
+            '__VERSION__'
+        )
+        with open(fname, encoding="utf-8") as f:
+            self.version = f.read().strip()
+
+    def render(self) -> RenderableType:
+        """Render centered ASCII art with version.
+
+        Returns:
+            RenderableType: Centered content
+        """
+        from rich.console import Group
+
+        # Create version text aligned to the right of the ASCII art
+        # The ASCII art width is about 85 chars, version goes at the end
+        version_line = " " * 73 + f"v{self.version}"
+        version_text = Text(version_line, style="dim")
+
+        # Create text with ASCII art
+        art_text = Text(self.ASCII_ART, style="bold cyan")
+
+        # Center both
+        centered_version = Align.center(version_text)
+        centered_art = Align.center(art_text)
+
+        # Combine with spacing - version before art
+        return Group(
+            "",
+            centered_version,
+            centered_art,
+            ""
+        )
 
 
 class HeaderSeparator(Static):
@@ -234,21 +299,21 @@ class TasksDataTable(DataTable):
 
     def on_mount(self) -> None:
         """Load and display tasks data when widget is mounted."""
-        # Add columns - dates use compact format
+        # Add columns - Result and State first, dates use 4-digit year format
+        self.add_column("Result", key="result", width=7)
+        self.add_column("State", key="state", width=8)
         self.add_column(
             "Task Action" if not self.show_label_mode else "Task Label",
             key="label",
-            width=48
+            width=None  # Auto-width to show full content
         )
         self.add_column(
             "Task ID" if not self.show_label_mode else "Plan UUID",
             key="task_id",
             width=36
         )
-        self.add_column("Started At", key="started", width=17)
-        self.add_column("Ended At", key="ended", width=17)
-        self.add_column("State", key="state", width=9)
-        self.add_column("Result", key="result", width=7)
+        self.add_column("Started At", key="started", width=19)
+        self.add_column("Ended At", key="ended", width=19)
 
         # Load task data
         self._load_tasks()
@@ -384,15 +449,15 @@ class TasksDataTable(DataTable):
         else:
             result_text = Text(result if result else "")
 
-        # Add row
+        # Add row - match column order: Result, State, Label, ID, Started, Ended
         row_key = f"task_{task_id}"
         self.add_row(
+            result_text,
+            state_text,
             label_text,
             task_id_text,
             started_text,
             ended_text,
-            state_text,
-            result_text,
             key=row_key
         )
 
@@ -487,7 +552,7 @@ class TasksDataTable(DataTable):
             self.move_cursor(row=saved_cursor, column=0)
 
     def _format_date(self, date_str):
-        """Format date to YY-MM-DD HH:MM:SS (17 chars).
+        """Format date to YYYY-MM-DD HH:MM:SS (19 chars).
 
         Args:
             date_str: Date string in format YYYY-MM-DD HH:MM:SS.microseconds
@@ -498,10 +563,10 @@ class TasksDataTable(DataTable):
         if not date_str:
             return ""
         date_str = str(date_str)
-        # Format: 2026-05-22 08:58:14.123456 -> 26-05-22 08:58:14
+        # Format: 2026-05-22 08:58:14.123456 -> 2026-05-22 08:58:14
         if len(date_str) >= 19:
-            # Extract YY-MM-DD HH:MM:SS
-            return date_str[2:4] + date_str[4:10] + " " + date_str[11:19]
+            # Extract YYYY-MM-DD HH:MM:SS
+            return date_str[0:10] + " " + date_str[11:19]
         return date_str
 
 
@@ -807,14 +872,13 @@ class ActionsTreeTable(DataTable):
 
     def on_mount(self) -> None:
         """Load and display actions/steps when mounted."""
-        # Columns matching HTML: Action/Step, Started, Ended, Real Time,
-        # Exec Time, Status - dates compact, first column grows, time minimal
+        # Columns - Status first, dates use 4-digit year format
+        self.add_column("Status", key="status", width=8)
         self.add_column("Action / Step", key="action", width=None)
-        self.add_column("Started At", key="started", width=17)
-        self.add_column("Ended At", key="ended", width=17)
+        self.add_column("Started At", key="started", width=19)
+        self.add_column("Ended At", key="ended", width=19)
         self.add_column("RealT", key="real_time", width=None)
         self.add_column("ExecT", key="exec_time", width=None)
-        self.add_column("Status", key="status", width=9)
 
         # Fetch actions with steps
         self._load_actions()
@@ -976,13 +1040,16 @@ class ActionsTreeTable(DataTable):
             else:
                 action_text.append("▶ ", style="dim")  # Collapsed
 
-        action_text.append(f"{run_step_id}: ", style="dim")
-        action_text.append(action_class)
-
-        # Add alert indicator if action has output data
+        # Format run_step_id with alert indicator if action has output data
         output = action[7] if len(action) > 7 else ""
+        action_text.append(f"{run_step_id}", style="dim")
         if output and output != "{}":
-            action_text.append(" !", style="bold red")
+            action_text.append("!", style="bold red")
+            action_text.append(" ")
+        else:
+            action_text.append(": ", style="dim")
+
+        action_text.append(action_class)
 
         # Color-code status (full word)
         if state == "error":
@@ -995,13 +1062,14 @@ class ActionsTreeTable(DataTable):
             status_text = Text(state if state else "")
 
         row_key = f"action_{action_id}"
+        # Match column order: Status, Action/Step, Started, Ended, RealT, ExecT
         self.add_row(
+            status_text,
             action_text,
             started,
             ended,
             real_time,
             exec_time,
-            status_text,
             key=row_key
         )
         self.row_keys.append(row_key)
@@ -1070,13 +1138,17 @@ class ActionsTreeTable(DataTable):
         step_text = Text()
         step_text.append(indent)
         step_text.append("  └─ ", style="dim")
-        step_text.append(f"{run_step_id}.{step_id}: ", style="dim cyan")
-        step_text.append(action_class)
+        step_text.append(f"{run_step_id}.{step_id}", style="dim cyan")
 
         # Add alert indicator if step has error content
         error = step[13] if len(step) > 13 else ""
         if error:
-            step_text.append(" !", style="bold red")
+            step_text.append("!", style="bold red")
+            step_text.append(" ")
+        else:
+            step_text.append(": ", style="dim cyan")
+
+        step_text.append(action_class)
 
         # Color-code status (full word)
         if state == "error":
@@ -1089,13 +1161,14 @@ class ActionsTreeTable(DataTable):
             status_text = Text(state if state else "")
 
         row_key = f"step_{action_id}_{step_id}"
+        # Match column order: Status, Action/Step, Started, Ended, RealT, ExecT
         self.add_row(
+            status_text,
             step_text,
             started,
             ended,
             real_time,
             exec_time,
-            status_text,
             key=row_key
         )
         self.row_keys.append(row_key)
@@ -1264,7 +1337,7 @@ class ActionsTreeTable(DataTable):
         self.app.push_screen(DetailModal(title, formatted_content))
 
     def _format_date(self, date_str):
-        """Format date to YY-MM-DD HH:MM:SS (17 chars).
+        """Format date to YYYY-MM-DD HH:MM:SS (19 chars).
 
         Args:
             date_str: Date string in format YYYY-MM-DD HH:MM:SS.microseconds
@@ -1275,10 +1348,10 @@ class ActionsTreeTable(DataTable):
         if not date_str:
             return ""
         date_str = str(date_str)
-        # Format: 2026-05-22 08:58:14.123456 -> 26-05-22 08:58:14
+        # Format: 2026-05-22 08:58:14.123456 -> 2026-05-22 08:58:14
         if len(date_str) >= 19:
-            # Extract YY-MM-DD HH:MM:SS
-            return date_str[2:4] + date_str[4:10] + " " + date_str[11:19]
+            # Extract YYYY-MM-DD HH:MM:SS
+            return date_str[0:10] + " " + date_str[11:19]
         return date_str
 
 

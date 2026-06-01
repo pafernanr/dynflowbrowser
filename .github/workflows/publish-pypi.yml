@@ -17,8 +17,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Replace version in setup.py
-        run: sed -Ei "s/(^[[:space:]]*version=).*/\1'${{github.ref_name}}',/" setup.py
+      - name: Replace version in setup.py and __VERSION__
+        run: |
+          sed -Ei "s/(^[[:space:]]*version=).*/\1'${{github.ref_name}}',/" setup.py
+          echo "${{github.ref_name}}" > dynflowbrowser/__VERSION__
 
       - uses: actions/setup-python@v5
         with:

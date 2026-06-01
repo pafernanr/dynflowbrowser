@@ -22,8 +22,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Replace version in RPM spec so correct source is downloaded when building RPM
-        run: sed -Ei 's/(^Version:[[:space:]]*).*/\1${{github.ref_name}}/' ${{ env.PKG_NAME }}.spec
+      - name: Replace version in RPM spec and __VERSION__
+        run: |
+          sed -Ei 's/(^Version:[[:space:]]*).*/\1${{github.ref_name}}/' ${{ env.PKG_NAME }}.spec
+          echo "${{github.ref_name}}" > dynflowbrowser/__VERSION__
 
       # - name: Create source archive
       #   run: tar -zcvf ${{ env.PKG_NAME }}-${{ github.ref_name }}.tar.gz * --transform "s,^,${{ env.PKG_NAME }}-${{ github.ref_name }}/,"
@@ -42,8 +44,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Replace version in RPM spec so correct source is downloaded when building RPM
-        run: sed -Ei 's/(^Version:[[:space:]]*).*/\1${{github.ref_name}}/' ${{ env.PKG_NAME }}.spec
+      - name: Replace version in RPM spec and __VERSION__
+        run: |
+          sed -Ei 's/(^Version:[[:space:]]*).*/\1${{github.ref_name}}/' ${{ env.PKG_NAME }}.spec
+          echo "${{github.ref_name}}" > dynflowbrowser/__VERSION__
 
       - name: Run rpmbuild on RPM spec to produce package
         id: rpm

@@ -131,6 +131,53 @@ class HttpServer:
         except Exception:
             return socket.gethostname()
 
+    def get_direct_access_lines(self, url_path="/"):
+        """Get direct HTTP access information lines.
+
+        Args:
+            url_path: Path to append to URLs (default: "/")
+
+        Returns:
+            list: List of strings with direct access information
+        """
+        lines = []
+        for iface, ip in self.ip_addresses:
+            url = f"http://{ip}:{self.port}{url_path}"
+            if iface:
+                lines.append(f"  {iface}: {url}")
+            else:
+                lines.append(f"  {url}")
+        return lines
+
+    def get_ssh_tunnel_lines(self, url_path="/"):
+        """Get SSH tunnel access information lines.
+
+        Args:
+            url_path: Path to append to browser URL (default: "/")
+
+        Returns:
+            list: List of strings with SSH tunnel commands
+        """
+        hostname = self.get_fqdn()
+        lines = ["1. Create SSH tunnel using the proper IP:"]
+
+        # Add SSH commands for each available IP (except localhost)
+        for iface, ip in self.ip_addresses:
+            if ip != "127.0.0.1":
+                lines.append(f"     ssh -L {self.port}:localhost:{self.port} {ip}")
+
+        # Add hostname option as last option
+        lines.append(f"     ssh -L {self.port}:localhost:{self.port} {hostname}")
+
+        # Add the browser URL
+        lines.extend([
+            "",
+            "2. Then open in browser:",
+            f"     http://localhost:{self.port}{url_path}"
+        ])
+
+        return lines
+
     def find_free_port(self):
         """Find a free port in the user range (1024-65535).
 

@@ -299,9 +299,15 @@ class TasksDataTable(DataTable):
 
     def on_mount(self) -> None:
         """Load and display tasks data when widget is mounted."""
+        self._add_columns()
+        # Load task data
+        self._load_tasks()
+
+    def _add_columns(self) -> None:
+        """Add columns to the table based on current mode."""
         # Add columns - Result and State first, dates use 4-digit year format
-        self.add_column("Result", key="result", width=7)
-        self.add_column("State", key="state", width=8)
+        self.add_column("Result", key="result", width=None)
+        self.add_column("State", key="state", width=None)
         self.add_column(
             "Task Action" if not self.show_label_mode else "Task Label",
             key="label",
@@ -314,9 +320,6 @@ class TasksDataTable(DataTable):
         )
         self.add_column("Started At", key="started", width=19)
         self.add_column("Ended At", key="ended", width=19)
-
-        # Load task data
-        self._load_tasks()
 
     def _load_tasks(self) -> None:
         """Load tasks from database."""
@@ -477,19 +480,20 @@ class TasksDataTable(DataTable):
 
     def toggle_columns(self) -> None:
         """Toggle between Action/ID and Label/UUID display."""
+        # Save current scroll position and cursor
+        cursor_row = self.cursor_row
+
         # Toggle the mode
         self.show_label_mode = not self.show_label_mode
 
-        # Update column headers
-        self.columns["label"].label = (
-            "Task Label" if self.show_label_mode else "Task Action"
-        )
-        self.columns["task_id"].label = (
-            "Plan UUID" if self.show_label_mode else "Task ID"
-        )
-
-        # Re-render the table with new data
+        # Clear and rebuild table to recalculate column widths
+        self.clear(columns=True)
+        self._add_columns()
         self._render_table()
+
+        # Restore cursor position
+        if cursor_row is not None and cursor_row < len(self.row_keys):
+            self.move_cursor(row=cursor_row)
 
     def expand_task(self) -> None:
         """Expand current parent task to show children."""
@@ -869,11 +873,14 @@ class ActionsTreeTable(DataTable):
         self.expanded_actions = set()  # Track which actions are expanded
         self.action_steps = {}  # Map action_id to list of step keys
         self.step_rows = {}  # Map step key to row index
+        # Dynamic width for time columns
+        self.max_real_time_width = 4  # Minimum for "0.00"
+        self.max_exec_time_width = 4
 
     def on_mount(self) -> None:
         """Load and display actions/steps when mounted."""
         # Columns - Status first, dates use 4-digit year format
-        self.add_column("Status", key="status", width=8)
+        self.add_column("Status", key="status", width=None)
         self.add_column("Action / Step", key="action", width=None)
         self.add_column("Started At", key="started", width=19)
         self.add_column("Ended At", key="ended", width=19)
@@ -893,6 +900,25 @@ class ActionsTreeTable(DataTable):
         # Render root actions recursively
         for action in self.root_actions:
             self._render_action_tree(action, depth=0)
+
+    def _calculate_time_widths(self) -> None:
+        """Calculate maximum width needed for time columns."""
+        # Scan all steps to find max width needed
+        for action_id, steps in self.steps_by_action.items():
+            for step in steps:
+                # Format as it will appear
+                real_time = f"{step[6]:.2f}" if step[6] else "0.00"
+                exec_time = f"{step[7]:.2f}" if step[7] else "0.00"
+
+                # Update max widths
+                self.max_real_time_width = max(
+                    self.max_real_time_width,
+                    len(real_time)
+                )
+                self.max_exec_time_width = max(
+                    self.max_exec_time_width,
+                    len(exec_time)
+                )
 
     def _load_actions(self) -> None:
         """Load actions and steps from database."""
@@ -917,6 +943,9 @@ class ActionsTreeTable(DataTable):
         for action_id in self.actions_by_id:
             if action_id in self.steps_by_action:
                 self.action_steps[action_id] = self.steps_by_action[action_id]
+
+        # Calculate optimal widths for time columns
+        self._calculate_time_widths()
 
         # Auto-expand actions with non-success states
         # This includes actions where the action itself OR any descendant has issues
@@ -1081,6 +1110,20 @@ class ActionsTreeTable(DataTable):
             'has_children': has_children
         }
 
+    def _format_time_right(self, value, column='real'):
+        """Format time value with right alignment.
+
+        Args:
+            value: Time value to format
+            column: 'real' or 'exec' to determine which width to use
+
+        Returns:
+            Right-aligned string
+        """
+        width = (self.max_real_time_width if column == 'real'
+                 else self.max_exec_time_width)
+        return str(value).rjust(width)
+
     def _get_action_aggregated_data(self, action_id):
         """Get aggregated step data for an action.
 
@@ -1091,7 +1134,7 @@ class ActionsTreeTable(DataTable):
             Tuple of (started, ended, real_time, exec_time, state)
         """
         if action_id not in self.steps_by_action:
-            return "", "", "0.00", "0.00", ""
+            return "", "", self._format_time_right("0.00", 'real'), self._format_time_right("0.00", 'exec'), ""
 
         steps = self.steps_by_action[action_id]
 
@@ -1104,8 +1147,8 @@ class ActionsTreeTable(DataTable):
 
         started = self._format_date(min(started_times)) if started_times else ""
         ended = self._format_date(max(ended_times)) if ended_times else ""
-        real_time = f"{sum(real_times):.2f}" if real_times else "0.00"
-        exec_time = f"{sum(exec_times):.2f}" if exec_times else "0.00"
+        real_time = self._format_time_right(f"{sum(real_times):.2f}", 'real') if real_times else self._format_time_right("0.00", 'real')
+        exec_time = self._format_time_right(f"{sum(exec_times):.2f}", 'exec') if exec_times else self._format_time_right("0.00", 'exec')
 
         # Get the "worst" state (error > warning > skipped > pending > success)
         state_priority = {'error': 0, 'warning': 1, 'skipped': 2, 'pending': 3, 'suspended': 4, 'success': 5}
@@ -1127,8 +1170,8 @@ class ActionsTreeTable(DataTable):
         # Format timestamps to YY-MM-DD HH:MM:SS
         started = self._format_date(step[4])
         ended = self._format_date(step[5])
-        real_time = f"{step[6]:.2f}" if step[6] else "0.00"
-        exec_time = f"{step[7]:.2f}" if step[7] else "0.00"
+        real_time = self._format_time_right(f"{step[6]:.2f}", 'real') if step[6] else self._format_time_right("0.00", 'real')
+        exec_time = self._format_time_right(f"{step[7]:.2f}", 'exec') if step[7] else self._format_time_right("0.00", 'exec')
         state = str(step[3]) if step[3] else ""
 
         # Calculate indentation (steps are one level deeper than their action)

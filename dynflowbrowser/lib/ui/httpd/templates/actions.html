@@ -165,15 +165,15 @@
 
                 <div class="action-details">
                     <div class="content-area" id="input-{{a[0]}}">
-                        <pre class="code-block">{{a[6]}}</pre>
+                        <pre class="code-block">{{a[6]|safe}}</pre>
                     </div>
 
                     <div class="content-area" id="output-{{a[0]}}">
-                        <pre class="code-block">{{a[7]}}</pre>
+                        <pre class="code-block">{{a[7]|safe}}</pre>
                     </div>
 
                     <div class="content-area" id="data-{{a[0]}}">
-                        <pre class="code-block">{{a[5]}}</pre>
+                        <pre class="code-block">{{a[5]|safe}}</pre>
                     </div>
 
                     <!-- Steps -->
@@ -200,19 +200,19 @@
 
                             <div class="step-details">
                                 <div class="content-area" id="error-{{a[0]}}-{{s[1]}}">
-                                    <pre class="code-block">{{s[13]}}</pre>
+                                    <pre class="code-block">{{s[13]|safe}}</pre>
                                 </div>
 
                                 <div class="content-area" id="queue-{{a[0]}}-{{s[1]}}">
-                                    <pre class="code-block">{{s[12]}}</pre>
+                                    <pre class="code-block">{{s[12]|safe}}</pre>
                                 </div>
 
                                 <div class="content-area" id="children-{{a[0]}}-{{s[1]}}">
-                                    <pre class="code-block">{{s[14]}}</pre>
+                                    <pre class="code-block">{{s[14]|safe}}</pre>
                                 </div>
 
                                 <div class="content-area" id="stepdata-{{a[0]}}-{{s[1]}}">
-                                    <pre class="code-block">{{s[15]}}</pre>
+                                    <pre class="code-block">{{s[15]|safe}}</pre>
                                 </div>
                             </div>
                         </div>

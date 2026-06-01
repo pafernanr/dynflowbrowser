@@ -25,9 +25,11 @@ class TasksScreen(Screen):
     BINDINGS = [
         Binding("q", "app.quit", "Quit", priority=True),
         Binding("escape", "back_to_welcome", "Back", show=True),
+        Binding("h", "show_httpd_modal", "HTTP Access", show=True,
+                key_display="│ h"),
         Binding("s", "toggle_stats", "Dynflow/Pulp Stats", show=True),
-        Binding("t", "toggle_columns", "Toggle Columns", show=True),
-        Binding("h", "show_httpd_modal", "HTTP Access", show=True),
+        Binding("t", "toggle_columns", "View Foreman/Dynflow", show=True,
+                key_display="│ t"),
         Binding("d", "app.toggle_dark", "Dark Mode", show=False),
     ]
 
@@ -147,13 +149,11 @@ class ActionsScreen(Screen):
     BINDINGS = [
         Binding("q", "app.quit", "Quit", priority=True),
         Binding("escape", "app.pop_screen", "Back", show=True),
-        # Stats group - separator (Textual adds space before automatically)
-        Binding("s", "toggle_stats", "Dynflow/Pulp Stats", show=True,
-                key_display="|  s"),
-        # Detail menu - separator
+        Binding("h", "show_httpd_modal", "HTTP Access", show=True,
+                key_display="│ h"),
+        Binding("s", "toggle_stats", "Dynflow/Pulp Stats", show=True),
         Binding("d", "show_detail_menu", "Details", show=True,
-                key_display="|  d"),
-        Binding("h", "show_httpd_modal", "HTTP Access", show=True),
+                key_display="│ d"),
     ]
 
     def __init__(self, db, conf, plan_uuid):
@@ -418,24 +418,15 @@ class HttpdAccessModal(ModalScreen):
         if not hasattr(self.app, 'httpd_server') or not self.app.httpd_server:
             return
 
-        # Get server info
-        ip_addresses = self.app.httpd_server.get_all_ips()
-        port = self.app.httpd_server.port
-        hostname = self.app.httpd_server.get_fqdn()
-
         # Build URL path based on plan_uuid
         url_path = f"/?plan_uuid={self.plan_uuid}" if self.plan_uuid else "/"
 
         # Direct HTTP Access section
         direct_text = Text()
         direct_text.append("Direct HTTP Access:\n", style="bold cyan")
-        for iface, ip in ip_addresses:
-            url = f"http://{ip}:{port}{url_path}"
-            if iface:
-                direct_text.append(f"  {iface}: ", style="dim")
-            else:
-                direct_text.append("  ", style="dim")
-            direct_text.append(f"{url}\n", style="bold")
+        direct_lines = self.app.httpd_server.get_direct_access_lines(url_path)
+        for line in direct_lines:
+            direct_text.append(f"{line}\n", style="bold")
 
         container.mount(Static(direct_text))
         container.mount(Static(""))
@@ -443,16 +434,9 @@ class HttpdAccessModal(ModalScreen):
         # SSH Tunnel Access section
         ssh_text = Text()
         ssh_text.append("SSH Tunnel Access:\n", style="bold cyan")
-        ssh_text.append("  1. Create SSH tunnel:\n", style="dim")
-        ssh_text.append(
-            f"     ssh -L {port}:localhost:{port} {hostname}\n\n",
-            style="bold"
-        )
-        ssh_text.append("  2. Open in browser:\n", style="dim")
-        ssh_text.append(
-            f"     http://localhost:{port}{url_path}\n",
-            style="bold"
-        )
+        ssh_lines = self.app.httpd_server.get_ssh_tunnel_lines(url_path)
+        for line in ssh_lines:
+            ssh_text.append(f"{line}\n", style="dim")
 
         container.mount(Static(ssh_text))
 

@@ -203,13 +203,17 @@ class HttpdInfoScreen(Screen):
             return
 
         logs = self.query_one("#server-logs", RichLog)
-        logs.write("[bold green]HTTP Server detected (started externally)[/bold green]")
+        logs.write(
+            "[bold green]HTTP Server detected (started externally)"
+            "[/bold green]"
+        )
 
         # Update server info
         self.server_info = {
             'ip_addresses': self.app.httpd_server.get_all_ips(),
             'port': self.app.httpd_server.port,
             'hostname': self.app.httpd_server.get_fqdn(),
+            'server': self.app.httpd_server,
         }
         self._update_display()
         self.server_running = True
@@ -269,6 +273,7 @@ class HttpdInfoScreen(Screen):
             'ip_addresses': self.app.httpd_server.get_all_ips(),
             'port': self.app.httpd_server.port,
             'hostname': self.app.httpd_server.get_fqdn(),
+            'server': self.app.httpd_server,
         }
         self._update_display()
         self.server_running = True
@@ -331,37 +336,44 @@ class HttpdInfoScreen(Screen):
 
     def _update_display(self):
         """Update the display with current server info."""
+        # Get the server instance if available
+        server = self.server_info.get('server')
+
         # Update direct access content
         direct_content = self.query_one("#direct-access-content", Static)
-        lines = []
-        for iface, ip in self.server_info.get('ip_addresses', []):
-            url = f"http://{ip}:{self.server_info['port']}/"
-            if iface:
-                lines.append(f"  {iface}: {url}")
-            else:
-                lines.append(f"  {url}")
+        if server:
+            lines = server.get_direct_access_lines("/")
+        else:
+            # Fallback to manual generation if server not available
+            lines = []
+            for iface, ip in self.server_info.get('ip_addresses', []):
+                url = f"http://{ip}:{self.server_info['port']}/"
+                if iface:
+                    lines.append(f"  {iface}: {url}")
+                else:
+                    lines.append(f"  {url}")
         direct_content.update("\n".join(lines))
 
         # Update SSH tunnel content
-        port = self.server_info.get('port', '8000')
-        hostname = self.server_info.get('hostname', 'remote-host')
         ssh_content = self.query_one("#ssh-tunnel-content", Static)
-        ssh_lines = ["Create SSH tunnel using the proper IP:"]
+        if server:
+            ssh_lines = server.get_ssh_tunnel_lines("/")
+        else:
+            # Fallback to manual generation if server not available
+            port = self.server_info.get('port', '8000')
+            hostname = self.server_info.get('hostname', 'remote-host')
+            ssh_lines = ["Create SSH tunnel using the proper IP:"]
 
-        # Add SSH commands for each available IP (except localhost)
-        for iface, ip in self.server_info.get('ip_addresses', []):
-            if ip != "127.0.0.1":
-                ssh_lines.append(f"  ssh -L {port}:localhost:{port} {ip}")
+            for iface, ip in self.server_info.get('ip_addresses', []):
+                if ip != "127.0.0.1":
+                    ssh_lines.append(f"  ssh -L {port}:localhost:{port} {ip}")
 
-        # Add hostname option as last option
-        ssh_lines.append(f"  ssh -L {port}:localhost:{port} {hostname}")
-
-        # Add the browser URL
-        ssh_lines.extend([
-            "",
-            "Then open in browser:",
-            f"  http://localhost:{port}/"
-        ])
+            ssh_lines.append(f"  ssh -L {port}:localhost:{port} {hostname}")
+            ssh_lines.extend([
+                "",
+                "Then open in browser:",
+                f"  http://localhost:{port}/"
+            ])
 
         ssh_content.update("\n".join(ssh_lines))
 
@@ -370,6 +382,7 @@ class HttpdInfoScreen(Screen):
         logs.write(
             "[bold green]HTTP Server started successfully[/bold green]"
         )
+        port = self.server_info.get('port', '8000')
         logs.write(f"[cyan]Listening on port {port}[/cyan]")
 
     def log_message(self, message: str) -> None:

@@ -1,7 +1,7 @@
 Name: dynflowbrowser
 Version: 0.0.0
 Release: py3
-Summary: Get sosreport dynflow files and generates user friendly html pages for tasks, plans, actions and steps
+Summary: Interactive browser for analyzing Dynflow task execution data from TheForeman/Red Hat Satellite sosreports.
 
 License: GPLv3
 URL:            https://github.com/pafernanr/dynflowbrowser
@@ -18,7 +18,9 @@ Requires: python3-pandas
 Requires: python3-textual
 
 %description
-Read sosreport dynflow files and generates user friendly html pages for Tasks, Plans, Actions and Steps
+DynflowBrowser provides two interfaces for analyzing Foreman/Satellite task execution:
+- **Terminal Browser**: Fast keyboard-driven TUI for console-based analysis
+- **HTTPD Service**: Web interface accessible from any browser
 
 %prep
 %setup -qn %{name}-%{version}

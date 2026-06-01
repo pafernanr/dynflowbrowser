@@ -1,6 +1,6 @@
 # DynflowBrowser
 
-Interactive browser for analyzing Dynflow task execution data from Red Hat Satellite sosreports.
+Interactive browser for analyzing Dynflow task execution data from TheForeman/Red Hat Satellite sosreports.
 
 ## Overview
 

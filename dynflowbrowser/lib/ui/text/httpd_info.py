@@ -344,6 +344,7 @@ class HttpdInfoScreen(Screen):
 
         # Update SSH tunnel content
         port = self.server_info.get('port', '8000')
+        hostname = self.server_info.get('hostname', 'remote-host')
         ssh_content = self.query_one("#ssh-tunnel-content", Static)
         ssh_lines = ["Create SSH tunnel using the proper IP:"]
 
@@ -352,9 +353,8 @@ class HttpdInfoScreen(Screen):
             if ip != "127.0.0.1":
                 ssh_lines.append(f"  ssh -L {port}:localhost:{port} {ip}")
 
-        # If no non-localhost IPs found, show generic command
-        if len(ssh_lines) == 1:
-            ssh_lines.append(f"  ssh -L {port}:localhost:{port} <remote-ip>")
+        # Add hostname option as last option
+        ssh_lines.append(f"  ssh -L {port}:localhost:{port} {hostname}")
 
         # Add the browser URL
         ssh_lines.extend([

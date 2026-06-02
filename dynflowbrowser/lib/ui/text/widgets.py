@@ -15,6 +15,25 @@ from dynflowbrowser.lib.ui.shared import FormatHelpers
 from dynflowbrowser.lib.ui.shared import StatsQueries
 
 
+def format_date(date_str):
+    """Format date to YYYY-MM-DD HH:MM:SS (19 chars).
+
+    Args:
+        date_str: Date string in format YYYY-MM-DD HH:MM:SS.microseconds
+
+    Returns:
+        str: Formatted date or empty string
+    """
+    if not date_str:
+        return ""
+    date_str = str(date_str)
+    # Format: 2026-05-22 08:58:14.123456 -> 2026-05-22 08:58:14
+    if len(date_str) >= 19:
+        # Extract YYYY-MM-DD HH:MM:SS
+        return date_str[0:10] + " " + date_str[11:19]
+    return date_str
+
+
 class LogoBanner(Static):
     """ASCII art logo with version, centered with colored background."""
 
@@ -38,15 +57,9 @@ class LogoBanner(Static):
     def __init__(self, **kwargs):
         """Initialize logo banner."""
         super().__init__(**kwargs)
-        # Get version
-        fname = os.path.join(
-            os.path.dirname(os.path.dirname(
-                os.path.dirname(os.path.dirname(__file__))
-            )),
-            '__VERSION__'
-        )
-        with open(fname, encoding="utf-8") as f:
-            self.version = f.read().strip()
+        # Get version using shared method
+        from dynflowbrowser.lib.configuration import get_version
+        self.version = get_version()
 
     def render(self) -> RenderableType:
         """Render centered ASCII art with version.
@@ -58,7 +71,7 @@ class LogoBanner(Static):
 
         # Create version text aligned to the right of the ASCII art
         # The ASCII art width is about 85 chars, version goes at the end
-        version_line = " " * 73 + f"v{self.version}"
+        version_line = " " * 73 + self.version
         version_text = Text(version_line, style="dim")
 
         # Create text with ASCII art
@@ -404,8 +417,8 @@ class TasksDataTable(DataTable):
         state = str(row[4]) if row[4] else ""
         result = str(row[5]) if row[5] else ""
         # Format dates as YY-MM-DD HH:MM:SS (17 chars)
-        started = self._format_date(row[6])
-        ended = self._format_date(row[7])
+        started = format_date(row[6])
+        ended = format_date(row[7])
         action = str(row[8]) if row[8] else ""
 
         # Format first column (action or label depending on mode)
@@ -554,25 +567,6 @@ class TasksDataTable(DataTable):
         # Restore cursor position
         if saved_cursor < len(self.row_keys):
             self.move_cursor(row=saved_cursor, column=0)
-
-    def _format_date(self, date_str):
-        """Format date to YYYY-MM-DD HH:MM:SS (19 chars).
-
-        Args:
-            date_str: Date string in format YYYY-MM-DD HH:MM:SS.microseconds
-
-        Returns:
-            str: Formatted date or empty string
-        """
-        if not date_str:
-            return ""
-        date_str = str(date_str)
-        # Format: 2026-05-22 08:58:14.123456 -> 2026-05-22 08:58:14
-        if len(date_str) >= 19:
-            # Extract YYYY-MM-DD HH:MM:SS
-            return date_str[0:10] + " " + date_str[11:19]
-        return date_str
-
 
 class ActionsDataTable(DataTable):
     """DataTable widget for displaying actions for a specific plan."""
@@ -1145,8 +1139,8 @@ class ActionsTreeTable(DataTable):
         exec_times = [step[7] for step in steps if step[7]]
         states = [step[3] for step in steps if step[3]]
 
-        started = self._format_date(min(started_times)) if started_times else ""
-        ended = self._format_date(max(ended_times)) if ended_times else ""
+        started = format_date(min(started_times)) if started_times else ""
+        ended = format_date(max(ended_times)) if ended_times else ""
         real_time = self._format_time_right(f"{sum(real_times):.2f}", 'real') if real_times else self._format_time_right("0.00", 'real')
         exec_time = self._format_time_right(f"{sum(exec_times):.2f}", 'exec') if exec_times else self._format_time_right("0.00", 'exec')
 
@@ -1168,8 +1162,8 @@ class ActionsTreeTable(DataTable):
         step_id = step[1]
         action_class = str(step[10]) if step[10] else ""
         # Format timestamps to YY-MM-DD HH:MM:SS
-        started = self._format_date(step[4])
-        ended = self._format_date(step[5])
+        started = format_date(step[4])
+        ended = format_date(step[5])
         real_time = self._format_time_right(f"{step[6]:.2f}", 'real') if step[6] else self._format_time_right("0.00", 'real')
         exec_time = self._format_time_right(f"{step[7]:.2f}", 'exec') if step[7] else self._format_time_right("0.00", 'exec')
         state = str(step[3]) if step[3] else ""
@@ -1378,25 +1372,6 @@ class ActionsTreeTable(DataTable):
         # Show in modal
         from .app import DetailModal
         self.app.push_screen(DetailModal(title, formatted_content))
-
-    def _format_date(self, date_str):
-        """Format date to YYYY-MM-DD HH:MM:SS (19 chars).
-
-        Args:
-            date_str: Date string in format YYYY-MM-DD HH:MM:SS.microseconds
-
-        Returns:
-            str: Formatted date or empty string
-        """
-        if not date_str:
-            return ""
-        date_str = str(date_str)
-        # Format: 2026-05-22 08:58:14.123456 -> 2026-05-22 08:58:14
-        if len(date_str) >= 19:
-            # Extract YYYY-MM-DD HH:MM:SS
-            return date_str[0:10] + " " + date_str[11:19]
-        return date_str
-
 
 class DetailPanel(VerticalScroll):
     """Scrollable panel for displaying detailed information."""

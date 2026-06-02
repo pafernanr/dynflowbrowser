@@ -4,6 +4,20 @@ import os
 from dynflowbrowser.lib.util import Util
 
 
+def get_version():
+    """Get version string from __VERSION__ file.
+
+    Returns:
+        str: Version string (e.g., 'v0.0.1rc6')
+    """
+    fname = os.path.join(os.path.dirname(__file__), '..', '__VERSION__')
+    try:
+        with open(fname, encoding="utf-8") as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return "unknown"
+
+
 class Conf:
 
     def __init__(self):
@@ -183,11 +197,12 @@ Examples:
             pass  # Silently ignore errors saving args file
 
     def get_version(self):
-        fname = os.path.join(os.path.dirname(__file__),
-                             '..', '__VERSION__')
-        version = open(
-            fname, encoding="utf-8"
-            ).read()
+        """Get version and store in sos dict.
+
+        Returns:
+            str: Version string
+        """
+        version = get_version()
         self.sos['version'] = version
         return version
 

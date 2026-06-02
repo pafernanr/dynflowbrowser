@@ -30,6 +30,9 @@ DynflowBrowser provides two interfaces for analyzing Foreman/Satellite task exec
 %install
 rm -rf ${RPM_BUILD_ROOT}
 
+# Set version in __VERSION__ file
+echo "v%{version}" > dynflowbrowser/__VERSION__
+
 mkdir -p ${RPM_BUILD_ROOT}/usr/lib/tools/dynflowbrowser/bin
 install -D -m 755 dynflowbrowser/bin/__init__.py ${RPM_BUILD_ROOT}/usr/lib/tools/dynflowbrowser/bin/__init__.py
 mkdir -p ${RPM_BUILD_ROOT}/usr/lib/tools/dynflowbrowser_export_tasks/bin

@@ -307,7 +307,7 @@ class DynamicHttpServer(HttpServer):
     """HTTP server that dynamically generates HTML from SQLite."""
 
     def __init__(self, conf, pulp_stats, dynflow_stats, quiet=False,
-                 log_callback=None):
+                 log_callback=None, data_provider=None):
         """Initialize dynamic HTTP server.
 
         Args:
@@ -316,12 +316,18 @@ class DynamicHttpServer(HttpServer):
             dynflow_stats: Pre-computed dynflow execution statistics
             quiet: If True, suppress output messages
             log_callback: Optional callback function for logging messages
+            data_provider: Data provider with plan-specific stats
         """
         super().__init__(conf.args.output_path, quiet)
         self.conf = conf
         self.pulp_total_exectime = pulp_stats
         self.dynflow_total_exectime = dynflow_stats
         self.log_callback = log_callback
+        # Store plan-specific stats if provider is given
+        self.pulp_plans_exectime = (data_provider.pulp_plans_exectime
+                                     if data_provider else {})
+        self.dynflow_plans_exectime = (data_provider.dynflow_plans_exectime
+                                        if data_provider else {})
 
         # Initialize Jinja2 Environment
         template_dir = os.path.join(
@@ -359,12 +365,14 @@ class DynamicHttpServer(HttpServer):
             # Prepare template context
             context = {
                 "rows": rows,
-                "dynflow_total_exectime": self.dynflow_total_exectime,
-                "pulp_total_exectime": sorted(
+                "dynflow_exectime": self.dynflow_total_exectime,
+                "pulp_exectime": sorted(
                     self.pulp_total_exectime.items(),
                     key=lambda item: item[1],
                     reverse=True
                 )[:5],
+                "dynflow_count_label": "Steps",
+                "pulp_count_label": "Count",
                 "sos": self.conf.sos,
             }
 
@@ -386,6 +394,11 @@ class DynamicHttpServer(HttpServer):
         """
         # Create thread-local database connection
         db = OutputSQLite(self.conf)
+        data_provider = BaseDataProvider(db, self.conf)
+
+        # Copy pre-computed plan-specific stats
+        data_provider.pulp_plans_exectime = self.pulp_plans_exectime
+        data_provider.dynflow_plans_exectime = self.dynflow_plans_exectime
 
         try:
             # Fetch steps for this plan using shared query
@@ -431,6 +444,10 @@ class DynamicHttpServer(HttpServer):
                 ActionHierarchy.build_hierarchy(data)
             )
 
+            # Get plan-specific stats (methods return pre-sorted top 5)
+            dynflow_stats = data_provider.get_dynflow_plans_exectime(plan_uuid)
+            pulp_stats = data_provider.get_pulp_plans_exectime(plan_uuid)
+
             # Prepare template context
             context = {
                 "root_actions": root_actions,
@@ -438,8 +455,10 @@ class DynamicHttpServer(HttpServer):
                 "label": data[0][9] if data else "",
                 "execution_plan_uuid": plan_uuid,
                 "caller_execution_plan_id": data[0][11] if data else "",
-                "pulp_exectime": [],
-                "dynflow_exectime": [],
+                "pulp_exectime": pulp_stats,
+                "dynflow_exectime": dynflow_stats,
+                "dynflow_count_label": "Steps",
+                "pulp_count_label": "Actions",
                 "sos": self.conf.sos,
             }
 

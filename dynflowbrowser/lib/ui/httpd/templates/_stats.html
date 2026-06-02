@@ -1,0 +1,47 @@
+<div class="stats-compact">
+    <div class="stat-table-compact">
+        <div class="stat-table-title">Dynflow Top 5 (by execution time)</div>
+        <table class="stat-table-mini">
+            <thead>
+                <tr>
+                    <th>Exectime</th>
+                    <th>{{ dynflow_count_label|default('Steps') }}</th>
+                    <th>Name</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in dynflow_exectime %}
+                <tr>
+                    <td>{{ "{:0,.0f}".format(r[1][0] if r[1] is iterable and r[1] is not string else r[0]) }}</td>
+                    <td>{{ "{:0,.0f}".format(r[1][1] if r[1] is iterable and r[1] is not string else r[1]) }}</td>
+                    <td>{{ r[0] if r[1] is iterable and r[1] is not string else r[2] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if pulp_exectime|length > 0 %}
+    <div class="stat-table-compact">
+        <div class="stat-table-title">Pulp Top 5 (by execution time)</div>
+        <table class="stat-table-mini">
+            <thead>
+                <tr>
+                    <th>Exectime</th>
+                    <th>{{ pulp_count_label|default('Actions') }}</th>
+                    <th>Name</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in pulp_exectime %}
+                <tr>
+                    <td>{{ "{:0,.0f}".format(r[1][0]) }}</td>
+                    <td>{{ "{:0,.0f}".format(r[1][1]) }}</td>
+                    <td>{{ r[0] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>

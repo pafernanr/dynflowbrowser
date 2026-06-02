@@ -56,50 +56,7 @@
     <!-- Compact Header Section -->
     <div class="header-section-compact" id="pageHeader">
             <div class="header-content">
-            <div class="stats-compact">
-                <div class="stat-table-compact">
-                    <div class="stat-table-title">Top Dynflow steps per execution time</div>
-                    <table class="stat-table-mini">
-                        <thead>
-                            <tr>
-                                <th>Exectime</th>
-                                <th>Steps</th>
-                                <th>Label</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for r in dynflow_total_exectime[:5] %}
-                            <tr>
-                                <td>{{ "{:0,.0f}".format(r[0]) }}</td>
-                                <td>{{ "{:0,.0f}".format(r[1]) }}</td>
-                                <td>{{ r[2] }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                <div class="stat-table-compact">
-                    <div class="stat-table-title">Top pulpcore Tasks per execution time</div>
-                    <table class="stat-table-mini">
-                        <thead>
-                            <tr>
-                                <th>Exectime</th>
-                                <th>Count</th>
-                                <th>Name</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for r in pulp_total_exectime[:5] %}
-                            <tr>
-                                <td>{{ "{:0,.0f}".format(r[1][0]) }}</td>
-                                <td>{{ "{:0,.0f}".format(r[1][1]) }}</td>
-                                <td>{{ r[0] }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            {% include '_stats.html' %}
             </div>
     </div>
 
@@ -119,8 +76,8 @@
                 </div>
                 <div class="task-col-timestamp">Started At</div>
                 <div class="task-col-timestamp">Ended At</div>
-                <div class="task-col-result">Result</div>
                 <div class="task-col-state">State</div>
+                <div class="task-col-result">Result</div>
             </div>
 
             <div class="task-list-scrollable">
@@ -160,8 +117,8 @@
                     </div>
                     <div class="task-timestamp">{{t[6][:-7]}}</div>
                     <div class="task-timestamp">{{t[7][:-7]}}</div>
-                    <span class="status-badge status-{{t[5]}}">{{t[5]}}</span>
                     <div class="task-state state-{{t[4]}}">{{t[4]}}</div>
+                    <span class="status-badge status-{{t[5]}}">{{t[5]}}</span>
                 </div>
 
                 {% if t[1] in child_tasks %}
@@ -185,8 +142,8 @@
                             </div>
                             <div class="task-timestamp">{{child[6][:-7]}}</div>
                             <div class="task-timestamp">{{child[7][:-7]}}</div>
-                            <span class="status-badge status-{{child[5]}}">{{child[5]}}</span>
                             <div class="task-state state-{{child[4]}}">{{child[4]}}</div>
+                            <span class="status-badge status-{{child[5]}}">{{child[5]}}</span>
                         </div>
                     </div>
                     {% endfor %}

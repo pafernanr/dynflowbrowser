@@ -675,55 +675,92 @@ class ActionDetailsHeader(Static):
 
     def on_mount(self) -> None:
         """Load and display action details when mounted."""
-        # Query to get action details
-        query = """
-            SELECT p.label, t.action, t.id, a.caller_execution_plan_id
+        # Use the shared query to get actions for this plan
+        from dynflowbrowser.lib.ui.shared import ActionQueries
+
+        # Get task/plan info
+        task_query = """
+            SELECT p.label, t.action, t.id
             FROM plans p
             LEFT JOIN tasks t ON p.uuid = t.external_id
-            LEFT JOIN actions a ON p.uuid = a.execution_plan_uuid
             WHERE p.uuid = ?
             LIMIT 1
         """
-        result = self.db.query(query, (self.plan_uuid,))
+        task_result = self.db.query(task_query, (self.plan_uuid,))
 
-        if result and len(result) > 0:
-            row = result[0]
+        if task_result and len(task_result) > 0:
+            row = task_result[0]
             label = str(row[0]) if row[0] else "N/A"
             task = str(row[1]) if row[1] else "N/A"
             task_id = str(row[2]) if row[2] else "N/A"
-            caller = str(row[3]) if row[3] else None
         else:
             label = "N/A"
             task = "N/A"
             task_id = "N/A"
-            caller = None
 
-        # Build multi-line header - split across two lines
-        line1 = Text()
-        line1.append("Task: ", style="cyan bold")
-        line1.append(task)
-        line1.append(" | ")
-        line1.append("Label: ", style="cyan bold")
-        line1.append(label)
+        # Get caller_execution_plan_id from first action (index 11)
+        actions = ActionQueries.get_actions_for_plan(self.db, self.plan_uuid)
+        caller = None
+        if actions and len(actions) > 0:
+            caller_val = actions[0][11]  # caller_execution_plan_id at index 11
+            if caller_val and str(caller_val).strip():
+                caller = str(caller_val)
 
-        line2 = Text()
-        line2.append("ID: ", style="cyan bold")
-        line2.append(str(task_id))
+        # Build multi-line header with wrapping
+        from rich.console import Console
 
-        if caller:
-            line2.append(" | ")
-            line2.append("Caller: ", style="cyan bold")
-            line2.append(caller)
+        # Get terminal width
+        console = Console()
+        width = console.width if console.width else 80
 
-        line2.append(" | ")
-        line2.append("Plan: ", style="cyan bold")
-        line2.append(self.plan_uuid)
+        lines = []
+        current_line = Text()
 
-        # Combine both lines
+        # Add items with wrapping logic
+        items = [
+            ("Task: ", task),
+            ("Label: ", label),
+            ("Task ID: ", str(task_id)),
+        ]
+
+        if caller and caller.strip():
+            items.append(("Caller Task ID: ", caller))
+
+        items.append(("Plan UUID: ", self.plan_uuid))
+
+        for i, (key, value) in enumerate(items):
+            # Create the key-value pair
+            pair = Text()
+            pair.append(key, style="cyan bold")
+            pair.append(value)
+
+            # Check if adding this pair would exceed width
+            test_line = current_line.copy()
+            if len(test_line) > 0:
+                test_line.append(" | ")
+            test_line.append_text(pair)
+
+            # If it fits, add it to current line
+            if len(test_line) <= width:
+                if len(current_line) > 0:
+                    current_line.append(" | ")
+                current_line.append_text(pair)
+            else:
+                # Save current line and start new one with this pair
+                if len(current_line) > 0:
+                    lines.append(current_line)
+                current_line = pair.copy()
+
+        # Add the last line
+        if len(current_line) > 0:
+            lines.append(current_line)
+
+        # Combine all lines
         header = Text()
-        header.append_text(line1)
-        header.append("\n")
-        header.append_text(line2)
+        for i, line in enumerate(lines):
+            header.append_text(line)
+            if i < len(lines) - 1:
+                header.append("\n")
 
         self.update(header)
 
@@ -1372,6 +1409,60 @@ class ActionsTreeTable(DataTable):
         # Show in modal
         from .app import DetailModal
         self.app.push_screen(DetailModal(title, formatted_content))
+
+class HttpAccessInfo(Static):
+    """Widget displaying HTTP server access information."""
+
+    def __init__(self, server, url_path="/", **kwargs):
+        """Initialize HTTP access info widget.
+
+        Args:
+            server: HTTP server instance
+            url_path: URL path to append to URLs
+            **kwargs: Additional keyword arguments
+        """
+        super().__init__(**kwargs)
+        self.server = server
+        self.url_path = url_path
+
+    def render(self):
+        """Render the HTTP access information."""
+        from rich.text import Text
+
+        output = Text()
+
+        # Direct HTTP Access section
+        output.append("Direct HTTP Access\n", style="bold cyan")
+        direct_lines = self.server.get_direct_access_lines(self.url_path)
+        for line in direct_lines:
+            # Colorize interface names (e.g., "wlp9s0f0:", "tun0:")
+            if ": http://" in line:
+                parts = line.split(": http://", 1)
+                output.append(parts[0] + ":", style="yellow")
+                output.append(" http://" + parts[1] + "\n")
+            else:
+                output.append(f"{line}\n")
+
+        # Single empty line between sections
+        output.append("\n")
+
+        # SSH Tunnel Access section
+        output.append("SSH Tunnel Access\n", style="bold cyan")
+        ssh_lines = self.server.get_ssh_tunnel_lines(self.url_path)
+        for i, line in enumerate(ssh_lines):
+            # Colorize step labels
+            if line.startswith("1. Create SSH tunnel") or \
+               line.startswith("2. Then open in browser"):
+                output.append(line, style="yellow")
+            else:
+                output.append(line)
+
+            # Add newline except for last line
+            if i < len(ssh_lines) - 1:
+                output.append("\n")
+
+        return output
+
 
 class DetailPanel(VerticalScroll):
     """Scrollable panel for displaying detailed information."""

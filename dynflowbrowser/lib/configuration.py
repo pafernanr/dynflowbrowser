@@ -20,7 +20,13 @@ def get_version():
 
 class Conf:
 
-    def __init__(self):
+    def __init__(self, tui_mode=False):
+        """Initialize configuration.
+
+        Args:
+            tui_mode: If True, skip console prompts for TUI handling
+        """
+        self.tui_mode = tui_mode
         self.cwd = os.getcwd()
         self.util = Util("W")
         self.dynflowdata = {
@@ -138,8 +144,12 @@ Examples:
         self.dbfile = self.args.output_path + "/dynflowbrowser.db"
         self.argsfile = self.args.output_path + "/execution_args.txt"
 
-        # Check if database file already exists and ask user
-        if os.path.exists(self.dbfile) and self.writesql:
+        # Check if database file already exists
+        # Store DB existence info for TUI mode to handle
+        self.db_exists = os.path.exists(self.dbfile) and self.writesql
+
+        # In non-TUI mode, ask user via console (legacy behavior)
+        if self.db_exists and not self.tui_mode:
             # Show relative path for cleaner output
             rel_path = os.path.relpath(self.dbfile, self.cwd)
             print(f"\nDatabase file already exists: {rel_path}")
@@ -151,20 +161,29 @@ Examples:
                 print("Reusing existing database...")
             else:
                 # Overwrite - remove old database files
-                os.remove(self.dbfile)
-                # Also remove WAL files if they exist
-                for suffix in ['-wal', '-shm']:
-                    wal_file = self.dbfile + suffix
-                    if os.path.exists(wal_file):
-                        os.remove(wal_file)
+                self._remove_database_files()
                 print("Overwriting database...")
-                # Also remove args file when overwriting
-                if os.path.exists(self.argsfile):
-                    os.remove(self.argsfile)
 
         # Save execution arguments to file only when creating new DB
-        if self.writesql:
+        # In TUI mode, defer saving until user confirms overwrite
+        if self.writesql and not self.tui_mode:
             self._save_execution_args()
+
+    def _remove_database_files(self):
+        """Remove database and related files."""
+        # Remove database file
+        if os.path.exists(self.dbfile):
+            os.remove(self.dbfile)
+
+        # Also remove WAL files if they exist
+        for suffix in ['-wal', '-shm']:
+            wal_file = self.dbfile + suffix
+            if os.path.exists(wal_file):
+                os.remove(wal_file)
+
+        # Also remove args file when overwriting
+        if os.path.exists(self.argsfile):
+            os.remove(self.argsfile)
 
     def _save_execution_args(self):
         """Save execution arguments to a file."""

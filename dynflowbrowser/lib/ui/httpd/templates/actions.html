@@ -36,13 +36,13 @@
             </span>
             <span class="detail-separator">|</span>
             <span class="detail-item">
-                <span class="detail-label">ID:</span>
+                <span class="detail-label">Task ID:</span>
                 <span class="detail-value">{{root_actions[0][13] if root_actions else ''}}</span>
             </span>
             {% if caller_execution_plan_id %}
             <span class="detail-separator">|</span>
             <span class="detail-item">
-                <span class="detail-label">Caller:</span>
+                <span class="detail-label">Caller Task ID:</span>
                 <span class="detail-value">
                     <a href='/?plan_uuid={{caller_execution_plan_id}}'>{{caller_execution_plan_id}}</a>
                 </span>
@@ -50,7 +50,7 @@
             {% endif %}
             <span class="detail-separator">|</span>
             <span class="detail-item">
-                <span class="detail-label">Plan:</span>
+                <span class="detail-label">Plan UUID:</span>
                 <span class="detail-value">{{execution_plan_uuid}}</span>
             </span>
         </div>
@@ -59,53 +59,7 @@
     <!-- Compact Header Section -->
     <div class="header-section-compact" id="pageHeader">
             <div class="header-content">
-            <div class="stats-compact">
-                <div class="stat-table-compact">
-                    <div class="stat-table-title">Dynflow Top 5 (by execution time)</div>
-                    <table class="stat-table-mini">
-                        <thead>
-                            <tr>
-                                <th>Exectime</th>
-                                <th>Steps</th>
-                                <th>Name</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for r in dynflow_exectime %}
-                            <tr>
-                                <td>{{ "{:0,.0f}".format(r[1][0]) }}</td>
-                                <td>{{ "{:0,.0f}".format(r[1][1]) }}</td>
-                                <td>{{ r[0] }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-
-                {% if pulp_exectime|length > 0 %}
-                <div class="stat-table-compact">
-                    <div class="stat-table-title">Pulp Top 5 (by execution time)</div>
-                    <table class="stat-table-mini">
-                        <thead>
-                            <tr>
-                                <th>Exectime</th>
-                                <th>Actions</th>
-                                <th>Name</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for r in pulp_exectime %}
-                            <tr>
-                                <td>{{ "{:0,.0f}".format(r[1][0]) }}</td>
-                                <td>{{ "{:0,.0f}".format(r[1][1]) }}</td>
-                                <td>{{ r[0] }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% endif %}
-            </div>
+            {% include '_stats.html' %}
             </div>
     </div>
 

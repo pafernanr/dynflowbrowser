@@ -10,7 +10,8 @@ from dynflowbrowser.lib.util import Util
 class DynflowBrowser:
 
     def __init__(self):
-        self.conf = Conf()
+        # Initialize in TUI mode to skip console prompts
+        self.conf = Conf(tui_mode=True)
         self.util = Util()
         self.input_dynflow = InputDynflow(self.conf)
         self.search_parser = SearchParser()

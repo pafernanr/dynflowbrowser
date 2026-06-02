@@ -4,7 +4,6 @@ import time
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Container
-from textual.containers import Horizontal
 from textual.screen import Screen
 from textual.widgets import Footer
 from textual.widgets import Header
@@ -26,37 +25,22 @@ class HttpdInfoScreen(Screen):
         background: $surface;
     }
 
-    #info-container {
-        height: 11;
+    #http-access-container {
+        height: auto;
         border: solid $primary;
+        padding: 0;
         margin: 0;
     }
 
-    #direct-access, #ssh-tunnel {
-        width: 50%;
-        height: 100%;
-        border-right: solid $primary;
-        padding: 0 1;
-    }
-
-    #ssh-tunnel {
-        border-right: none;
-    }
-
-    .info-title {
-        text-style: bold;
-        color: $accent;
-        margin-bottom: 0;
-    }
-
-    .info-line {
-        margin: 0 0 0 1;
+    #http-access-container HttpAccessInfo {
+        height: auto;
+        padding: 0;
     }
 
     #server-status-msg {
         width: 100%;
         text-align: center;
-        margin: 0;
+        margin: 1 0 0 0;
     }
 
     #server-esc-tip {
@@ -68,7 +52,7 @@ class HttpdInfoScreen(Screen):
     #logs-container {
         height: 1fr;
         border: solid $primary;
-        margin: 0;
+        margin: 1 0 0 0;
     }
 
     #logs-title {
@@ -107,26 +91,8 @@ class HttpdInfoScreen(Screen):
         """Compose the httpd info screen."""
         yield Header(show_clock=False)
 
-        # Top section: Direct access | SSH tunnel
-        with Container(id="info-container"):
-            with Horizontal():
-                # Direct access column
-                with Container(id="direct-access"):
-                    yield Static("Direct HTTP Access", classes="info-title")
-                    yield Static(
-                        "Server stopped",
-                        classes="info-line",
-                        id="direct-access-content"
-                    )
-
-                # SSH tunnel column
-                with Container(id="ssh-tunnel"):
-                    yield Static("SSH Tunnel Access", classes="info-title")
-                    yield Static(
-                        "Server stopped",
-                        classes="info-line",
-                        id="ssh-tunnel-content"
-                    )
+        # HTTP access info section (will be populated when server starts)
+        yield Container(id="http-access-container")
 
         # Status message between sections
         yield Static(
@@ -255,7 +221,8 @@ class HttpdInfoScreen(Screen):
             pulp_stats,
             dynflow_stats,
             quiet=True,
-            log_callback=log_callback
+            log_callback=log_callback,
+            data_provider=httpd_output.data_provider
         )
 
         # Start server in background
@@ -336,46 +303,16 @@ class HttpdInfoScreen(Screen):
 
     def _update_display(self):
         """Update the display with current server info."""
-        # Get the server instance if available
+        from dynflowbrowser.lib.ui.text.widgets import HttpAccessInfo
+
+        # Get the server instance
         server = self.server_info.get('server')
 
-        # Update direct access content
-        direct_content = self.query_one("#direct-access-content", Static)
         if server:
-            lines = server.get_direct_access_lines("/")
-        else:
-            # Fallback to manual generation if server not available
-            lines = []
-            for iface, ip in self.server_info.get('ip_addresses', []):
-                url = f"http://{ip}:{self.server_info['port']}/"
-                if iface:
-                    lines.append(f"  {iface}: {url}")
-                else:
-                    lines.append(f"  {url}")
-        direct_content.update("\n".join(lines))
-
-        # Update SSH tunnel content
-        ssh_content = self.query_one("#ssh-tunnel-content", Static)
-        if server:
-            ssh_lines = server.get_ssh_tunnel_lines("/")
-        else:
-            # Fallback to manual generation if server not available
-            port = self.server_info.get('port', '8000')
-            hostname = self.server_info.get('hostname', 'remote-host')
-            ssh_lines = ["Create SSH tunnel using the proper IP:"]
-
-            for iface, ip in self.server_info.get('ip_addresses', []):
-                if ip != "127.0.0.1":
-                    ssh_lines.append(f"  ssh -L {port}:localhost:{port} {ip}")
-
-            ssh_lines.append(f"  ssh -L {port}:localhost:{port} {hostname}")
-            ssh_lines.extend([
-                "",
-                "Then open in browser:",
-                f"  http://localhost:{port}/"
-            ])
-
-        ssh_content.update("\n".join(ssh_lines))
+            # Update HTTP access info using shared widget
+            container = self.query_one("#http-access-container")
+            container.remove_children()
+            container.mount(HttpAccessInfo(server, url_path="/"))
 
         # Update logs
         logs = self.query_one("#server-logs", RichLog)

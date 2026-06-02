@@ -413,7 +413,7 @@ class HttpdAccessModal(ModalScreen):
         Args:
             container: Container to add widgets to
         """
-        from rich.text import Text
+        from dynflowbrowser.lib.ui.text.widgets import HttpAccessInfo
 
         if not hasattr(self.app, 'httpd_server') or not self.app.httpd_server:
             return
@@ -421,24 +421,8 @@ class HttpdAccessModal(ModalScreen):
         # Build URL path based on plan_uuid
         url_path = f"/?plan_uuid={self.plan_uuid}" if self.plan_uuid else "/"
 
-        # Direct HTTP Access section
-        direct_text = Text()
-        direct_text.append("Direct HTTP Access:\n", style="bold cyan")
-        direct_lines = self.app.httpd_server.get_direct_access_lines(url_path)
-        for line in direct_lines:
-            direct_text.append(f"{line}\n", style="bold")
-
-        container.mount(Static(direct_text))
-        container.mount(Static(""))
-
-        # SSH Tunnel Access section
-        ssh_text = Text()
-        ssh_text.append("SSH Tunnel Access:\n", style="bold cyan")
-        ssh_lines = self.app.httpd_server.get_ssh_tunnel_lines(url_path)
-        for line in ssh_lines:
-            ssh_text.append(f"{line}\n", style="dim")
-
-        container.mount(Static(ssh_text))
+        # Mount shared HttpAccessInfo widget
+        container.mount(HttpAccessInfo(self.app.httpd_server, url_path))
 
     def action_start_server(self) -> None:
         """Start the HTTP server."""
@@ -469,7 +453,8 @@ class HttpdAccessModal(ModalScreen):
             self.conf,
             pulp_stats,
             dynflow_stats,
-            quiet=True
+            quiet=True,
+            data_provider=httpd_output.data_provider
         )
 
         def start_server():
@@ -958,20 +943,17 @@ class DynflowTUI(App):
         # Install quit modal
         self.install_screen(QuitModal(), "quit")
 
-        # If we need to import data, show loading screen first
-        if self.conf.writesql and self.sqlite and self.input_dynflow:
-            from .loading import LoadingScreen
-            loading_screen = LoadingScreen()
-            self.install_screen(loading_screen, "loading")
-            self.push_screen("loading")
-            # Start import in background worker
-            self.run_worker(
-                self._import_data_worker,
-                name="import_data",
-                exclusive=True,
-                exit_on_error=False,
-                thread=True
+        # Check if database exists and ask user before importing
+        if self.conf.db_exists:
+            # Show database reuse modal
+            from .db_reuse_modal import DatabaseReuseModal
+            self.push_screen(
+                DatabaseReuseModal(self.conf),
+                callback=self._handle_db_reuse_decision
             )
+        # If we need to import data, show loading screen first
+        elif self.conf.writesql and self.sqlite and self.input_dynflow:
+            self._start_data_import()
         elif self.show_welcome:
             # Database was reused - count existing rows
             self._count_existing_data()
@@ -1041,6 +1023,60 @@ class DynflowTUI(App):
 
         # Switch to httpd screen
         self.switch_screen("httpd")
+
+    def _handle_db_reuse_decision(self, reuse: bool) -> None:
+        """Handle the user's decision on database reuse.
+
+        Args:
+            reuse: True to reuse existing DB, False to overwrite
+        """
+        if reuse:
+            # Reuse existing database - skip import
+            self.conf.writesql = False
+            # Count existing data for stats
+            self._count_existing_data()
+            # Continue to welcome screen
+            if self.show_welcome:
+                from .welcome import WelcomeScreen
+                self.install_screen(WelcomeScreen(), "welcome")
+                self.install_screen(
+                    TasksScreen(self.db, self.conf, show_welcome=True),
+                    "tasks"
+                )
+                self.push_screen("welcome")
+                # Update welcome screen with stats
+                if self.import_stats:
+                    self._update_welcome_stats()
+            elif self.initial_mode == "httpd":
+                self.switch_screen("httpd")
+            else:
+                self.switch_screen("tasks")
+        else:
+            # Overwrite - remove old database and import new data
+            self.conf._remove_database_files()
+            self.conf.writesql = True
+            # Mark DB as no longer existing
+            self.conf.db_exists = False
+            # Save new execution arguments now that user confirmed
+            self.conf._save_execution_args()
+            # Start import
+            if self.sqlite and self.input_dynflow:
+                self._start_data_import()
+
+    def _start_data_import(self) -> None:
+        """Start the data import process with loading screen."""
+        from .loading import LoadingScreen
+        loading_screen = LoadingScreen()
+        self.install_screen(loading_screen, "loading")
+        self.push_screen("loading")
+        # Start import in background worker
+        self.run_worker(
+            self._import_data_worker,
+            name="import_data",
+            exclusive=True,
+            exit_on_error=False,
+            thread=True
+        )
 
     def _import_data_worker(self) -> None:
         """Import CSV data into SQLite with progress updates (runs in worker thread)."""

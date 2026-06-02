@@ -44,7 +44,8 @@ class HttpdOutput(BaseOutput):
             self.conf,
             self.data_provider.pulp_total_exectime,
             dynflow_stats,
-            quiet=False
+            quiet=False,
+            data_provider=self.data_provider
         )
         server.start()
 

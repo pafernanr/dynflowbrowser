@@ -13,6 +13,7 @@ from dynflowbrowser.lib.ui.shared import ActionHierarchy
 from dynflowbrowser.lib.ui.shared import ActionQueries
 from dynflowbrowser.lib.ui.shared import FormatHelpers
 from dynflowbrowser.lib.ui.shared import StatsQueries
+from .theme import STYLES
 
 
 def format_date(date_str):
@@ -72,10 +73,10 @@ class LogoBanner(Static):
         # Create version text aligned to the right of the ASCII art
         # The ASCII art width is about 85 chars, version goes at the end
         version_line = " " * 73 + self.version
-        version_text = Text(version_line, style="dim")
+        version_text = Text(version_line, style=STYLES["dim"])
 
         # Create text with ASCII art
-        art_text = Text(self.ASCII_ART, style="bold cyan")
+        art_text = Text(self.ASCII_ART, style=STYLES["title"])
 
         # Center both
         centered_version = Align.center(version_text)
@@ -209,13 +210,13 @@ class StatsPanel(Static):
         dynflow_table = Table(
             title="[bold]Top Dynflow[/]",
             show_header=True,
-            header_style="bold cyan",
+            header_style=STYLES["section_title"],
             expand=False,
             box=None
         )
-        dynflow_table.add_column("Exectime", justify="right", style="cyan", no_wrap=True)
+        dynflow_table.add_column("Exectime", justify="right", no_wrap=True)
         dynflow_table.add_column("Steps", justify="right", no_wrap=True)
-        dynflow_table.add_column("Label", style="dim", no_wrap=True, overflow="ellipsis")
+        dynflow_table.add_column("Label", style=STYLES["dim"], no_wrap=True, overflow="ellipsis")
 
         for row in dynflow_stats:
             exec_time = f"{float(row[0]):.0f}" if row[0] else "0"
@@ -252,13 +253,13 @@ class StatsPanel(Static):
         pulp_table = Table(
             title="[bold]Top Pulp[/]",
             show_header=True,
-            header_style="bold cyan",
+            header_style=STYLES["section_title"],
             expand=False,
             box=None
         )
-        pulp_table.add_column("Exectime", justify="right", style="cyan", no_wrap=True)
+        pulp_table.add_column("Exectime", justify="right", no_wrap=True)
         pulp_table.add_column("Count", justify="right", no_wrap=True)
-        pulp_table.add_column("Name", style="dim", no_wrap=True, overflow="ellipsis")
+        pulp_table.add_column("Name", style=STYLES["dim"], no_wrap=True, overflow="ellipsis")
 
         # Sort and show top 5 Pulp tasks
         if pulp_stats:
@@ -425,21 +426,21 @@ class TasksDataTable(DataTable):
         display_text = label if self.show_label_mode else action
         if is_child:
             label_text = Text()
-            label_text.append("  └─ ", style="dim")
+            label_text.append("  └─ ", style=STYLES["dim"])
             label_text.append(display_text if display_text else "")
         else:
             label_text = Text()
             # Add expand/collapse indicator for parents with children
             if has_children:
                 if task_id in self.expanded_parents:
-                    label_text.append("▼ ", style="dim")
+                    label_text.append("▼ ", style=STYLES["dim"])
                 else:
-                    label_text.append("▶ ", style="dim")
+                    label_text.append("▶ ", style=STYLES["dim"])
             label_text.append(display_text if display_text else "")
 
         # Format second column (task ID or plan UUID depending on mode)
         id_display = plan_uuid if self.show_label_mode else task_id
-        task_id_text = Text(id_display, style="cyan")
+        task_id_text = Text(id_display, style=STYLES["subtitle"])
 
         # Format timestamps (remove microseconds)
         started_text = started if started else ""
@@ -447,21 +448,21 @@ class TasksDataTable(DataTable):
 
         # Color-code state (full word)
         if state == "stopped":
-            state_text = Text(state, style="red")
+            state_text = Text(state, style=STYLES["error_text"])
         elif state == "running":
-            state_text = Text(state, style="cyan")
+            state_text = Text(state, style=STYLES["info_text"])
         elif state == "paused":
-            state_text = Text(state, style="yellow")
+            state_text = Text(state, style=STYLES["warning_text"])
         else:
             state_text = Text(state if state else "")
 
         # Color-code result (full word)
         if result == "error":
-            result_text = Text(result, style="bold red")
+            result_text = Text(result, style=STYLES["error_text"])
         elif result == "warning":
-            result_text = Text(result, style="bold yellow")
+            result_text = Text(result, style=STYLES["warning_text"])
         elif result == "success":
-            result_text = Text(result, style="bold green")
+            result_text = Text(result, style=STYLES["success_text"])
         else:
             result_text = Text(result if result else "")
 
@@ -639,11 +640,11 @@ class ActionsDataTable(DataTable):
             # Color-code result (first letter only)
             result_letter = result[0].upper() if result else ""
             if result == "error":
-                result_text = Text(result_letter, style="bold red")
+                result_text = Text(result_letter, style=STYLES["error_text"])
             elif result == "warning":
-                result_text = Text(result_letter, style="bold yellow")
+                result_text = Text(result_letter, style=STYLES["warning_text"])
             elif result == "success":
-                result_text = Text(result_letter, style="bold green")
+                result_text = Text(result_letter, style=STYLES["success_text"])
             else:
                 result_text = Text(result_letter)
 
@@ -731,7 +732,7 @@ class ActionDetailsHeader(Static):
         for i, (key, value) in enumerate(items):
             # Create the key-value pair
             pair = Text()
-            pair.append(key, style="cyan bold")
+            pair.append(key, style=STYLES["key"])
             pair.append(value)
 
             # Check if adding this pair would exceed width
@@ -803,13 +804,13 @@ class ActionStatsPanel(Static):
         dynflow_table = Table(
             title="[bold]Top Dynflow[/]",
             show_header=True,
-            header_style="bold cyan",
+            header_style=STYLES["section_title"],
             expand=False,
             box=None
         )
-        dynflow_table.add_column("Exectime", justify="right", style="cyan", no_wrap=True)
+        dynflow_table.add_column("Exectime", justify="right", no_wrap=True)
         dynflow_table.add_column("Steps", justify="right", no_wrap=True)
-        dynflow_table.add_column("Label", style="dim", no_wrap=True, overflow="ellipsis")
+        dynflow_table.add_column("Label", style=STYLES["dim"], no_wrap=True, overflow="ellipsis")
 
         for row in dynflow_stats:
             exec_time = f"{float(row[0]):.0f}" if row[0] else "0"
@@ -849,13 +850,13 @@ class ActionStatsPanel(Static):
         pulp_table = Table(
             title="[bold]Top Pulp[/]",
             show_header=True,
-            header_style="bold cyan",
+            header_style=STYLES["section_title"],
             expand=False,
             box=None
         )
-        pulp_table.add_column("Exectime", justify="right", style="cyan", no_wrap=True)
+        pulp_table.add_column("Exectime", justify="right", no_wrap=True)
         pulp_table.add_column("Count", justify="right", no_wrap=True)
-        pulp_table.add_column("Name", style="dim", no_wrap=True, overflow="ellipsis")
+        pulp_table.add_column("Name", style=STYLES["dim"], no_wrap=True, overflow="ellipsis")
 
         # Sort and show top 5 Pulp tasks
         if pulp_stats:
@@ -1096,28 +1097,28 @@ class ActionsTreeTable(DataTable):
         # Show expand/collapse indicator if action has steps or children
         if has_steps or has_children:
             if action_id in self.expanded_actions:
-                action_text.append("▼ ", style="dim")  # Expanded
+                action_text.append("▼ ", style=STYLES["dim"])  # Expanded
             else:
-                action_text.append("▶ ", style="dim")  # Collapsed
+                action_text.append("▶ ", style=STYLES["dim"])  # Collapsed
 
         # Format run_step_id with alert indicator if action has output data
         output = action[7] if len(action) > 7 else ""
-        action_text.append(f"{run_step_id}", style="dim")
+        action_text.append(f"{run_step_id}", style=STYLES["dim"])
         if output and output != "{}":
-            action_text.append("!", style="bold red")
+            action_text.append("!", style=STYLES["error_text"])
             action_text.append(" ")
         else:
-            action_text.append(": ", style="dim")
+            action_text.append(": ", style=STYLES["dim"])
 
         action_text.append(action_class)
 
         # Color-code status (full word)
         if state == "error":
-            status_text = Text(state, style="bold red")
+            status_text = Text(state, style=STYLES["error_text"])
         elif state == "warning":
-            status_text = Text(state, style="bold yellow")
+            status_text = Text(state, style=STYLES["warning_text"])
         elif state == "success":
-            status_text = Text(state, style="bold green")
+            status_text = Text(state, style=STYLES["success_text"])
         else:
             status_text = Text(state if state else "")
 
@@ -1211,7 +1212,7 @@ class ActionsTreeTable(DataTable):
         # Format step text (indented)
         step_text = Text()
         step_text.append(indent)
-        step_text.append("  └─ ", style="dim")
+        step_text.append("  └─ ", style=STYLES["dim"])
         step_text.append(f"{run_step_id}.{step_id}", style="dim cyan")
 
         # Add alert indicator if step has error content
@@ -1226,11 +1227,11 @@ class ActionsTreeTable(DataTable):
 
         # Color-code status (full word)
         if state == "error":
-            status_text = Text(state, style="bold red")
+            status_text = Text(state, style=STYLES["error_text"])
         elif state == "warning":
-            status_text = Text(state, style="bold yellow")
+            status_text = Text(state, style=STYLES["warning_text"])
         elif state == "success":
-            status_text = Text(state, style="bold green")
+            status_text = Text(state, style=STYLES["success_text"])
         else:
             status_text = Text(state if state else "")
 
@@ -1432,13 +1433,13 @@ class HttpAccessInfo(Static):
         output = Text()
 
         # Direct HTTP Access section
-        output.append("Direct HTTP Access\n", style="bold cyan")
+        output.append("Direct HTTP Access\n", style=STYLES["section_title"])
         direct_lines = self.server.get_direct_access_lines(self.url_path)
         for line in direct_lines:
             # Colorize interface names (e.g., "wlp9s0f0:", "tun0:")
             if ": http://" in line:
                 parts = line.split(": http://", 1)
-                output.append(parts[0] + ":", style="yellow")
+                output.append(parts[0] + ":", style=STYLES["highlight"])
                 output.append(" http://" + parts[1] + "\n")
             else:
                 output.append(f"{line}\n")
@@ -1447,13 +1448,13 @@ class HttpAccessInfo(Static):
         output.append("\n")
 
         # SSH Tunnel Access section
-        output.append("SSH Tunnel Access\n", style="bold cyan")
+        output.append("SSH Tunnel Access\n", style=STYLES["section_title"])
         ssh_lines = self.server.get_ssh_tunnel_lines(self.url_path)
         for i, line in enumerate(ssh_lines):
             # Colorize step labels
             if line.startswith("1. Create SSH tunnel") or \
                line.startswith("2. Then open in browser"):
-                output.append(line, style="yellow")
+                output.append(line, style=STYLES["highlight"])
             else:
                 output.append(line)
 

@@ -12,6 +12,7 @@ from textual.widgets import Button
 from textual.widgets import Footer
 from textual.widgets import Static
 
+from .theme import STYLES
 from .widgets import LogoBanner
 
 
@@ -209,13 +210,13 @@ class WelcomeScreen(Screen):
             if stats:
                 from rich.text import Text
                 text = Text()
-                text.append("Dynflow Data: ", style="dim")
+                text.append("Dynflow Data: ", style=STYLES["dim"])
                 parts = []
                 for dtype in ['tasks', 'plans', 'actions', 'steps']:
                     if dtype in stats:
                         s = stats[dtype]
                         parts.append(f"{s['rows']} {dtype}")
-                text.append(" | ".join(parts), style="green")
+                text.append(" | ".join(parts), style=STYLES["success_text"])
                 stats_widget.update(text)
         except Exception:
             pass
@@ -254,8 +255,8 @@ class WelcomeScreen(Screen):
 
             if filters:
                 text = Text()
-                text.append("Filters: ", style="dim")
-                text.append(" | ".join(filters), style="cyan")
+                text.append("Filters: ", style=STYLES["dim"])
+                text.append(" | ".join(filters), style=STYLES["subtitle"])
                 args_widget.update(text)
         except Exception:
             # Silently fail

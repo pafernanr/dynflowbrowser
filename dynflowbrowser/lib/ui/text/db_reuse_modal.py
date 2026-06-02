@@ -11,6 +11,8 @@ from textual.screen import ModalScreen
 from textual.widgets import Button
 from textual.widgets import Static
 
+from .theme import STYLES
+
 
 class DatabaseReuseModal(ModalScreen):
     """Modal to confirm database reuse or overwrite."""
@@ -134,7 +136,7 @@ class DatabaseReuseModal(ModalScreen):
                     )
                     yield Button(
                         "Overwrite",
-                        variant="warning",
+                        variant="error",
                         id="overwrite-btn"
                     )
 
@@ -187,15 +189,15 @@ class DatabaseReuseModal(ModalScreen):
             current_filters.append(f"Task Days: {self.conf.args.task_days}")
 
         # Display previous filters
-        text.append("Previous Filters:\n", style="bold #3f9c35")
+        text.append("Previous Filters:\n", style=STYLES["success_text"])
         if previous_filters:
             for f in previous_filters:
                 text.append(f"  • {f}\n")
         else:
-            text.append("  No filter information available\n", style="dim")
+            text.append("  No filter information available\n", style=STYLES["dim"])
 
         # Display current filters
-        text.append("Current Filters:\n", style="bold #ec7a08")
+        text.append("Current Filters:\n", style=STYLES["warning_text"])
         if current_filters:
             for i, f in enumerate(current_filters):
                 if i < len(current_filters) - 1:
@@ -203,7 +205,7 @@ class DatabaseReuseModal(ModalScreen):
                 else:
                     text.append(f"  • {f}")
         else:
-            text.append("  No filters (showing all tasks)", style="dim")
+            text.append("  No filters (showing all tasks)", style=STYLES["dim"])
 
         filters_widget.update(text)
 

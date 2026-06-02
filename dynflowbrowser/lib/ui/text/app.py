@@ -12,6 +12,7 @@ from textual.widgets import Header
 from textual.widgets import Static
 
 from .httpd_info import HttpdInfoScreen
+from .theme import STYLES
 from .welcome import WelcomeScreen
 from .widgets import HeaderSeparator
 from .widgets import HostDetailsHeader
@@ -331,8 +332,8 @@ class HttpdAccessModal(ModalScreen):
     BINDINGS = [
         Binding("escape", "dismiss", "Close", show=True),
         Binding("q", "dismiss", "Close", show=False),
-        Binding("y", "start_server", "Yes", show=False),
-        Binding("n", "dismiss", "No", show=False),
+        Binding("left", "previous_button", "", show=False),
+        Binding("right", "next_button", "", show=False),
     ]
 
     def __init__(self, conf, plan_uuid=None, **kwargs):
@@ -385,27 +386,23 @@ class HttpdAccessModal(ModalScreen):
         Args:
             container: Container to add widgets to
         """
-        from rich.text import Text
+        from textual.containers import Center
 
-        prompt_text = Text()
-        prompt_text.append(
-            "The HTTP server is currently stopped.\n\n",
-            style="dim"
+        # Message
+        message = Static(
+            "The HTTP server is currently stopped.\n\n"
+            "Would you like to start it?",
+            id="httpd_prompt_message"
         )
-        prompt_text.append(
-            "Would you like to start it?\n\n",
-            style="bold"
-        )
-        prompt_text.append(
-            "Press ",
-            style="dim"
-        )
-        prompt_text.append("(y)", style="bold green")
-        prompt_text.append(" for Yes or ", style="dim")
-        prompt_text.append("(n)", style="bold red")
-        prompt_text.append(" for No", style="dim")
+        container.mount(message)
 
-        container.mount(Static(prompt_text))
+        # Buttons
+        button_container = Horizontal(id="httpd_prompt_buttons")
+        container.mount(Center(button_container))
+
+        # Now mount buttons to the already-mounted container
+        button_container.mount(Button("Start Server", variant="success", id="start-btn"))
+        button_container.mount(Button("Cancel", variant="warning", id="cancel-btn"))
 
     def _show_access_info(self, container) -> None:
         """Show server access information.
@@ -473,6 +470,21 @@ class HttpdAccessModal(ModalScreen):
         """Close the modal."""
         self.app.pop_screen()
 
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button press."""
+        if event.button.id == "start-btn":
+            self.action_start_server()
+        elif event.button.id == "cancel-btn":
+            self.action_dismiss()
+
+    def action_previous_button(self) -> None:
+        """Focus previous button."""
+        self.screen.focus_previous()
+
+    def action_next_button(self) -> None:
+        """Focus next button."""
+        self.screen.focus_next()
+
 
 class DetailMenuModal(ModalScreen):
     """Modal screen to show detail menu options."""
@@ -524,7 +536,7 @@ class DetailMenuModal(ModalScreen):
                 menu_text = Text()
                 menu_text.append(f"{idx + 1}. {label}")
                 if has_alert:
-                    menu_text.append(" !", style="bold red")
+                    menu_text.append(" !", style=STYLES["error_text"])
 
                 style = "reverse" if idx == self.selected_index else ""
                 yield Static(
@@ -604,8 +616,8 @@ class QuitModal(ModalScreen):
             yield Static("Quit DynflowBrowser?", id="quit_title")
             with Container(id="quit_content"):
                 with Horizontal(id="quit_buttons"):
-                    yield Button("Yes", id="quit_yes", variant="error")
-                    yield Button("No", id="quit_no", variant="primary")
+                    yield Button("Yes", id="quit_yes", variant="success")
+                    yield Button("No", id="quit_no", variant="warning")
 
     def on_mount(self) -> None:
         """Focus the Yes button when modal opens."""
@@ -850,6 +862,24 @@ class DynflowTUI(App):
         padding: 1;
         height: auto;
         max-height: 30;
+    }
+
+    #httpd_prompt_message {
+        width: 100%;
+        text-align: center;
+        margin: 1 0;
+    }
+
+    #httpd_prompt_buttons {
+        width: auto;
+        height: auto;
+        align: center middle;
+    }
+
+    #httpd_prompt_buttons Button {
+        width: 20;
+        height: 3;
+        margin: 0 1;
     }
 
     DetailMenuModal {

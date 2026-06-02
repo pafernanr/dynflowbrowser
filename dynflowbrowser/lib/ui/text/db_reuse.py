@@ -1,21 +1,24 @@
-"""Database reuse confirmation modal for TUI."""
+"""Database reuse confirmation screen for TUI."""
 import os
 
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Center
 from textual.containers import Horizontal
+from textual.containers import Middle
 from textual.containers import Vertical
 from textual.containers import VerticalScroll
-from textual.screen import ModalScreen
+from textual.screen import Screen
 from textual.widgets import Button
+from textual.widgets import Footer
 from textual.widgets import Static
 
 from .theme import STYLES
+from .widgets import LogoBanner
 
 
-class DatabaseReuseModal(ModalScreen):
-    """Modal to confirm database reuse or overwrite."""
+class DatabaseReuseScreen(Screen):
+    """Screen to confirm database reuse or overwrite."""
 
     BINDINGS = [
         Binding("q", "request_quit", "Quit", priority=True),
@@ -25,16 +28,18 @@ class DatabaseReuseModal(ModalScreen):
     ]
 
     CSS = """
-    DatabaseReuseModal {
-        align: center middle;
+    DatabaseReuseScreen {
+        background: $surface;
     }
 
-    #dialog {
-        width: 80;
-        height: auto;
-        background: $surface;
-        border: thick $primary;
-        padding: 1 2;
+    #main-content {
+        align: center middle;
+        height: 1fr;
+    }
+
+    LogoBanner {
+        width: 100%;
+        margin: 0;
     }
 
     #title {
@@ -42,13 +47,15 @@ class DatabaseReuseModal(ModalScreen):
         text-align: center;
         text-style: bold;
         color: $warning;
-        margin-bottom: 1;
+        margin: 1 0;
+        padding: 0 2;
     }
 
     #db-path {
         width: 100%;
         text-align: center;
-        margin-bottom: 1;
+        margin: 0 0 1 0;
+        padding: 0 2;
         color: $text-muted;
     }
 
@@ -56,7 +63,7 @@ class DatabaseReuseModal(ModalScreen):
         width: 100%;
         height: auto;
         max-height: 15;
-        margin: 1 0;
+        margin: 1 2;
         background: $panel;
         border: solid $primary;
     }
@@ -69,14 +76,16 @@ class DatabaseReuseModal(ModalScreen):
     #message {
         width: 100%;
         text-align: center;
-        margin: 1 0;
+        margin: 1 2;
+        padding: 0 2;
     }
 
     #button-container {
         width: 100%;
         height: auto;
         align: center middle;
-        margin-top: 1;
+        margin: 1 0;
+        padding: 0 0 1 0;
     }
 
     Button {
@@ -100,45 +109,52 @@ class DatabaseReuseModal(ModalScreen):
         self.conf = conf
 
     def compose(self) -> ComposeResult:
-        """Compose the modal dialog."""
-        with Vertical(id="dialog"):
-            yield Static(
-                "Database Already Exists",
-                id="title"
-            )
+        """Compose the database reuse screen."""
+        with Center(id="main-content"):
+            with Middle():
+                with Vertical():
+                    # ASCII art logo at top
+                    yield LogoBanner()
 
-            # Show database path
-            rel_path = os.path.relpath(self.conf.dbfile, self.conf.cwd)
-            yield Static(
-                f"File: {rel_path}",
-                id="db-path"
-            )
-
-            # Show filters (previous and current)
-            with VerticalScroll(id="filters-section"):
-                yield Static("", id="filters-content")
-
-            # Explanation message
-            yield Static(
-                "[#3f9c35]Reuse[/#3f9c35]: Keep existing data and filters\n"
-                "[#ec7a08]Overwrite[/#ec7a08]: Delete and rebuild "
-                "with current filters",
-                id="message"
-            )
-
-            # Buttons
-            with Center():
-                with Horizontal(id="button-container"):
-                    yield Button(
-                        "Reuse",
-                        variant="success",
-                        id="reuse-btn"
+                    yield Static(
+                        "Database Already Exists",
+                        id="title"
                     )
-                    yield Button(
-                        "Overwrite",
-                        variant="error",
-                        id="overwrite-btn"
+
+                    # Show database path
+                    rel_path = os.path.relpath(self.conf.dbfile, self.conf.cwd)
+                    yield Static(
+                        f"File: {rel_path}",
+                        id="db-path"
                     )
+
+                    # Show filters (previous and current)
+                    with VerticalScroll(id="filters-section"):
+                        yield Static("", id="filters-content")
+
+                    # Explanation message
+                    yield Static(
+                        "[#3f9c35]Reuse[/#3f9c35]: Keep existing data and filters\n"
+                        "[#c9190b]Overwrite[/#c9190b]: Delete and rebuild "
+                        "with current filters",
+                        id="message"
+                    )
+
+                    # Buttons
+                    with Center():
+                        with Horizontal(id="button-container"):
+                            yield Button(
+                                "Reuse",
+                                variant="success",
+                                id="reuse-btn"
+                            )
+                            yield Button(
+                                "Overwrite",
+                                variant="error",
+                                id="overwrite-btn"
+                            )
+
+        yield Footer()
 
     def on_mount(self) -> None:
         """Load and display previous and current filters when mounted."""
@@ -210,11 +226,16 @@ class DatabaseReuseModal(ModalScreen):
         filters_widget.update(text)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Handle button press."""
+        """Handle button press and proceed with the decision."""
+        reuse = None
         if event.button.id == "reuse-btn":
-            self.dismiss(True)  # Reuse = True
+            reuse = True
         elif event.button.id == "overwrite-btn":
-            self.dismiss(False)  # Reuse = False
+            reuse = False
+
+        if reuse is not None:
+            # Call the handler on the app
+            self.app._handle_db_reuse_decision(reuse)
 
     def action_previous_button(self) -> None:
         """Focus previous button."""

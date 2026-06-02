@@ -6,9 +6,10 @@ from textual.binding import Binding
 from textual.containers import Container
 from textual.screen import Screen
 from textual.widgets import Footer
-from textual.widgets import Header
 from textual.widgets import RichLog
 from textual.widgets import Static
+
+from .widgets import AppHeader
 
 
 class HttpdInfoScreen(Screen):
@@ -89,7 +90,7 @@ class HttpdInfoScreen(Screen):
 
     def compose(self) -> ComposeResult:
         """Compose the httpd info screen."""
-        yield Header(show_clock=False)
+        yield AppHeader()
 
         # HTTP access info section (will be populated when server starts)
         yield Container(id="http-access-container")

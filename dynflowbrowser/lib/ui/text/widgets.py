@@ -16,6 +16,20 @@ from dynflowbrowser.lib.ui.shared import StatsQueries
 from .theme import STYLES
 
 
+class AppHeader(Static):
+    """Custom application header with styled title."""
+
+    def render(self) -> Text:
+        """Render the header with bold green title.
+
+        Returns:
+            Text: Styled header text
+        """
+        text = Text()
+        text.append("DynflowBrowser", style="bold #3f9c35")
+        return text
+
+
 def format_date(date_str):
     """Format date to YYYY-MM-DD HH:MM:SS (19 chars).
 

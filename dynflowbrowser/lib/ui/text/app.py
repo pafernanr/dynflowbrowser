@@ -8,12 +8,12 @@ from textual.screen import ModalScreen
 from textual.screen import Screen
 from textual.widgets import Button
 from textual.widgets import Footer
-from textual.widgets import Header
 from textual.widgets import Static
 
 from .httpd_info import HttpdInfoScreen
 from .theme import STYLES
 from .welcome import WelcomeScreen
+from .widgets import AppHeader
 from .widgets import HeaderSeparator
 from .widgets import HostDetailsHeader
 from .widgets import StatsPanel
@@ -74,7 +74,7 @@ class TasksScreen(Screen):
 
     def compose(self) -> ComposeResult:
         """Create child widgets."""
-        yield Header(show_clock=False)
+        yield AppHeader()
         version = self.conf.sos.get('version', '0')
         yield HeaderSeparator(version)
 
@@ -175,7 +175,7 @@ class ActionsScreen(Screen):
 
     def compose(self) -> ComposeResult:
         """Create child widgets."""
-        yield Header(show_clock=False)
+        yield AppHeader()
         version = self.conf.sos.get('version', '0')
         yield HeaderSeparator(version)
 
@@ -401,8 +401,13 @@ class HttpdAccessModal(ModalScreen):
         container.mount(Center(button_container))
 
         # Now mount buttons to the already-mounted container
-        button_container.mount(Button("Start Server", variant="success", id="start-btn"))
-        button_container.mount(Button("Cancel", variant="warning", id="cancel-btn"))
+        start_btn = Button("Start Server", variant="success", id="start-btn")
+        cancel_btn = Button("Cancel", variant="warning", id="cancel-btn")
+        button_container.mount(start_btn)
+        button_container.mount(cancel_btn)
+
+        # Set default focus on Start Server button
+        start_btn.focus()
 
     def _show_access_info(self, container) -> None:
         """Show server access information.
@@ -723,6 +728,14 @@ class DynflowTUI(App):
     """Interactive Textual TUI for browsing Dynflow tasks and actions."""
 
     CSS = """
+    AppHeader {
+        height: 1;
+        dock: top;
+        background: $boost;
+        padding: 0 1;
+        content-align: left middle;
+    }
+
     HeaderSeparator {
         height: 1;
         padding: 0;
@@ -937,9 +950,6 @@ class DynflowTUI(App):
     }
     """
 
-    TITLE = "DynflowBrowser"
-    SUB_TITLE = ""
-
     MODES = {
         "welcome": WelcomeScreen,
         "tasks": TasksScreen,
@@ -975,12 +985,10 @@ class DynflowTUI(App):
 
         # Check if database exists and ask user before importing
         if self.conf.db_exists:
-            # Show database reuse modal
-            from .db_reuse_modal import DatabaseReuseModal
-            self.push_screen(
-                DatabaseReuseModal(self.conf),
-                callback=self._handle_db_reuse_decision
-            )
+            # Show database reuse screen
+            from .db_reuse import DatabaseReuseScreen
+            self.install_screen(DatabaseReuseScreen(self.conf), "db_reuse")
+            self.switch_screen("db_reuse")
         # If we need to import data, show loading screen first
         elif self.conf.writesql and self.sqlite and self.input_dynflow:
             self._start_data_import()
@@ -1073,13 +1081,19 @@ class DynflowTUI(App):
                     TasksScreen(self.db, self.conf, show_welcome=True),
                     "tasks"
                 )
-                self.push_screen("welcome")
+                self.switch_screen("welcome")
                 # Update welcome screen with stats
                 if self.import_stats:
                     self._update_welcome_stats()
             elif self.initial_mode == "httpd":
                 self.switch_screen("httpd")
             else:
+                # Install and switch to tasks screen
+                if not self.is_screen_installed("tasks"):
+                    self.install_screen(
+                        TasksScreen(self.db, self.conf, show_welcome=False),
+                        "tasks"
+                    )
                 self.switch_screen("tasks")
         else:
             # Overwrite - remove old database and import new data

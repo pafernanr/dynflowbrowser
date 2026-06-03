@@ -210,13 +210,13 @@ class WelcomeScreen(Screen):
             if stats:
                 from rich.text import Text
                 text = Text()
-                text.append("Dynflow Data: ", style=STYLES["dim"])
+                text.append("Dynflow Data: ", style="cyan")
                 parts = []
                 for dtype in ['tasks', 'plans', 'actions', 'steps']:
                     if dtype in stats:
                         s = stats[dtype]
                         parts.append(f"{s['rows']} {dtype}")
-                text.append(" | ".join(parts), style=STYLES["success_text"])
+                text.append(" | ".join(parts), style="white")
                 stats_widget.update(text)
         except Exception:
             pass
@@ -255,8 +255,8 @@ class WelcomeScreen(Screen):
 
             if filters:
                 text = Text()
-                text.append("Filters: ", style=STYLES["dim"])
-                text.append(" | ".join(filters), style=STYLES["subtitle"])
+                text.append("Filters: ", style="cyan")
+                text.append(" | ".join(filters), style="white")
                 args_widget.update(text)
         except Exception:
             # Silently fail

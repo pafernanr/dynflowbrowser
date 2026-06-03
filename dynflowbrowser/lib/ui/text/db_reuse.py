@@ -7,7 +7,6 @@ from textual.containers import Center
 from textual.containers import Horizontal
 from textual.containers import Middle
 from textual.containers import Vertical
-from textual.containers import VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button
 from textual.widgets import Footer
@@ -42,50 +41,73 @@ class DatabaseReuseScreen(Screen):
         margin: 0;
     }
 
-    #title {
+    #db-info {
         width: 100%;
         text-align: center;
-        text-style: bold;
-        color: $warning;
         margin: 1 0;
         padding: 0 2;
     }
 
-    #db-path {
-        width: 100%;
-        text-align: center;
-        margin: 0 0 1 0;
-        padding: 0 2;
-        color: $text-muted;
-    }
-
-    #filters-section {
+    #filters-container {
         width: 100%;
         height: auto;
-        max-height: 15;
         margin: 1 2;
-        background: $panel;
-        border: solid $primary;
     }
 
-    #filters-content {
+    #filters-box {
         width: 100%;
-        color: $text;
+        height: auto;
+        border: solid $primary;
+        padding: 1;
+    }
+
+    #filters-columns {
+        width: 100%;
+        height: auto;
+    }
+
+    #previous-filters, #current-filters {
+        width: 1fr;
+        height: auto;
+        padding: 0 1;
+        align: center top;
+    }
+
+    .filter-content {
+        width: auto;
+        height: auto;
+        text-align: left;
     }
 
     #message {
         width: 100%;
+        height: auto;
+        margin: 1 0;
+        padding: 0;
+    }
+
+    #spacer {
+        height: 2;
+    }
+
+    #message-columns {
+        width: 100%;
+        height: auto;
+    }
+
+    #reuse-msg, #overwrite-msg {
+        width: 1fr;
+        height: auto;
         text-align: center;
-        margin: 1 2;
-        padding: 0 2;
+        padding: 0 1;
     }
 
     #button-container {
         width: 100%;
         height: auto;
         align: center middle;
-        margin: 1 0;
-        padding: 0 0 1 0;
+        margin: 1 0 2 0;
+        padding: 0;
     }
 
     Button {
@@ -116,29 +138,38 @@ class DatabaseReuseScreen(Screen):
                     # ASCII art logo at top
                     yield LogoBanner()
 
-                    yield Static(
-                        "Database Already Exists",
-                        id="title"
-                    )
+                    # Database info
+                    yield Static("", id="db-info")
 
-                    # Show database path
-                    rel_path = os.path.relpath(self.conf.dbfile, self.conf.cwd)
-                    yield Static(
-                        f"File: {rel_path}",
-                        id="db-path"
-                    )
+                    # Filters side-by-side
+                    with Vertical(id="filters-container"):
+                        with Vertical(id="filters-box"):
+                            with Horizontal(id="filters-columns"):
+                                with Center(id="previous-filters"):
+                                    yield Static(
+                                        "",
+                                        id="previous-content",
+                                        classes="filter-content"
+                                    )
+                                with Center(id="current-filters"):
+                                    yield Static(
+                                        "",
+                                        id="current-content",
+                                        classes="filter-content"
+                                    )
 
-                    # Show filters (previous and current)
-                    with VerticalScroll(id="filters-section"):
-                        yield Static("", id="filters-content")
-
-                    # Explanation message
-                    yield Static(
-                        "[#3f9c35]Reuse[/#3f9c35]: Keep existing data and filters\n"
-                        "[#c9190b]Overwrite[/#c9190b]: Delete and rebuild "
-                        "with current filters",
-                        id="message"
-                    )
+                    # Explanation messages side-by-side
+                    with Horizontal(id="message-columns"):
+                        yield Static(
+                            "[#3f9c35]Reuse[/#3f9c35]: "
+                            "Keep existing data and filters",
+                            id="reuse-msg"
+                        )
+                        yield Static(
+                            "[#c9190b]Overwrite[/#c9190b]: "
+                            "Delete and rebuild using new filters",
+                            id="overwrite-msg"
+                        )
 
                     # Buttons
                     with Center():
@@ -154,20 +185,37 @@ class DatabaseReuseScreen(Screen):
                                 id="overwrite-btn"
                             )
 
+                    # Spacer before footer
+                    yield Static("", id="spacer")
+
         yield Footer()
 
     def on_mount(self) -> None:
         """Load and display previous and current filters when mounted."""
+        self._load_db_info()
         self._load_filters()
         # Focus on Reuse button by default
         self.query_one("#reuse-btn", Button).focus()
+
+    def _load_db_info(self) -> None:
+        """Load and display database path with colored text."""
+        from rich.text import Text
+
+        db_widget = self.query_one("#db-info", Static)
+        rel_path = os.path.relpath(self.conf.dbfile, self.conf.cwd)
+
+        text = Text()
+        text.append("Database Already Exists: ", style="#ec7a08")
+        text.append(rel_path, style="white")
+
+        db_widget.update(text)
 
     def _load_filters(self) -> None:
         """Load and display previous and current filters."""
         from rich.text import Text
 
-        filters_widget = self.query_one("#filters-content", Static)
-        text = Text()
+        prev_widget = self.query_one("#previous-content", Static)
+        curr_widget = self.query_one("#current-content", Static)
 
         # Load previous filters from file
         previous_filters = []
@@ -204,26 +252,32 @@ class DatabaseReuseScreen(Screen):
         if self.conf.args.task_days:
             current_filters.append(f"Task Days: {self.conf.args.task_days}")
 
-        # Display previous filters
-        text.append("Previous Filters:\n", style=STYLES["success_text"])
+        # Build previous filters text
+        prev_text = Text()
+        prev_text.append("Previous Filters:\n", style="#3f9c35")
         if previous_filters:
             for f in previous_filters:
-                text.append(f"  • {f}\n")
+                prev_text.append(f"  • {f}\n")
         else:
-            text.append("  No filter information available\n", style=STYLES["dim"])
+            prev_text.append(
+                "  No filter information available",
+                style=STYLES["dim"]
+            )
 
-        # Display current filters
-        text.append("Current Filters:\n", style=STYLES["warning_text"])
+        # Build current filters text
+        curr_text = Text()
+        curr_text.append("New Filters:\n", style="#c9190b")
         if current_filters:
-            for i, f in enumerate(current_filters):
-                if i < len(current_filters) - 1:
-                    text.append(f"  • {f}\n")
-                else:
-                    text.append(f"  • {f}")
+            for f in current_filters:
+                curr_text.append(f"  • {f}\n")
         else:
-            text.append("  No filters (showing all tasks)", style=STYLES["dim"])
+            curr_text.append(
+                "  No filters (showing all tasks)",
+                style=STYLES["dim"]
+            )
 
-        filters_widget.update(text)
+        prev_widget.update(prev_text)
+        curr_widget.update(curr_text)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button press and proceed with the decision."""

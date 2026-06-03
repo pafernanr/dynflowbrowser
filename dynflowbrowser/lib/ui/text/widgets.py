@@ -20,13 +20,13 @@ class AppHeader(Static):
     """Custom application header with styled title."""
 
     def render(self) -> Text:
-        """Render the header with bold green title.
+        """Render the header with bold orange title.
 
         Returns:
             Text: Styled header text
         """
         text = Text()
-        text.append("DynflowBrowser", style="bold #3f9c35")
+        text.append("DynflowBrowser", style="bold #EE7D42")
         return text
 
 
@@ -87,10 +87,10 @@ class LogoBanner(Static):
         # Create version text aligned to the right of the ASCII art
         # The ASCII art width is about 85 chars, version goes at the end
         version_line = " " * 73 + self.version
-        version_text = Text(version_line, style=STYLES["dim"])
+        version_text = Text(version_line, style="dim #EE7D42")
 
         # Create text with ASCII art
-        art_text = Text(self.ASCII_ART, style=STYLES["title"])
+        art_text = Text(self.ASCII_ART, style="bold #EE7D42")
 
         # Center both
         centered_version = Align.center(version_text)
@@ -582,6 +582,7 @@ class TasksDataTable(DataTable):
         # Restore cursor position
         if saved_cursor < len(self.row_keys):
             self.move_cursor(row=saved_cursor, column=0)
+
 
 class ActionsDataTable(DataTable):
     """DataTable widget for displaying actions for a specific plan."""
@@ -1078,7 +1079,7 @@ class ActionsTreeTable(DataTable):
                 # Get run_step_id for step labeling
                 run_step_id = action[3] if action[3] else action_id
                 for step in self.action_steps[action_id]:
-                    self._add_step_row(action_id, run_step_id, step, depth=depth + 1)
+                    self._add_step_row(action_id, run_step_id, step, depth=depth)
 
             # Then add child actions recursively
             if has_children:
@@ -1424,6 +1425,8 @@ class ActionsTreeTable(DataTable):
         # Show in modal
         from .app import DetailModal
         self.app.push_screen(DetailModal(title, formatted_content))
+
+
 
 class HttpAccessInfo(Static):
     """Widget displaying HTTP server access information."""

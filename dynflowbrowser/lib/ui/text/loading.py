@@ -82,6 +82,7 @@ class LoadingScreen(Screen):
             current: Current progress
             total: Total items
         """
+        from rich.text import Text
         try:
             widget = self.query_one(f"#progress-{dtype}", Static)
             if total > 0:
@@ -89,9 +90,16 @@ class LoadingScreen(Screen):
                 bar_width = 30
                 filled = int(bar_width * current / total)
                 bar = "█" * filled + "░" * (bar_width - filled)
-                widget.update(f"{dtype.capitalize():8s}: [{bar}] {pct:3d}%")
+
+                text = Text()
+                text.append(f"{dtype.capitalize():8s}: ", style="cyan")
+                text.append(f"[{bar}] {pct:3d}%")
+                widget.update(text)
             else:
-                widget.update(f"{dtype.capitalize():8s}: [{'░' * 30}]   0%")
+                text = Text()
+                text.append(f"{dtype.capitalize():8s}: ", style="cyan")
+                text.append(f"[{'░' * 30}]   0%")
+                widget.update(text)
         except Exception:
             pass
 

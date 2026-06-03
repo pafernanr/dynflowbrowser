@@ -532,7 +532,24 @@ class DetailMenuModal(ModalScreen):
         from rich.text import Text
         from textual.containers import Container
         with Container(id="menu_container"):
-            yield Static(self.title_text, id="menu_title")
+            # Create title with X on the same line (right-aligned)
+            title_text = Text()
+            # Calculate padding to push X to the right
+            # Modal content width is less than container due to borders/padding
+            title_len = len(self.title_text)
+            # Use 36 instead of 40 to account for borders
+            padding = 36 - title_len - 3  # 3 for " [X]"
+            if padding < 1:
+                padding = 1
+
+            title_text.append(self.title_text, style="bold #EE7D42")
+            title_text.append(" " * padding)
+            title_text.append("[X]", style="bold #EE7D42")
+
+            title_widget = Static(title_text, id="menu_title")
+            title_widget.can_focus = True
+            yield title_widget
+
             for idx, option_tuple in enumerate(self.options):
                 label = option_tuple[0]
                 has_alert = option_tuple[2] if len(option_tuple) > 2 else False
@@ -544,11 +561,14 @@ class DetailMenuModal(ModalScreen):
                     menu_text.append(" !", style=STYLES["error_text"])
 
                 style = "reverse" if idx == self.selected_index else ""
-                yield Static(
+                menu_item = Static(
                     menu_text,
                     id=f"menu_item_{idx}",
                     classes=style
                 )
+                # Store index as a data attribute for click handling
+                menu_item.data_index = idx
+                yield menu_item
 
     def on_key(self, event) -> None:
         """Handle key presses for menu navigation."""
@@ -598,6 +618,22 @@ class DetailMenuModal(ModalScreen):
             self.app.pop_screen()
             if hasattr(self.table, 'toggle_detail'):
                 self.table.toggle_detail(detail_type)
+
+    def on_click(self, event) -> None:
+        """Handle clicks on menu items and close button.
+
+        Args:
+            event: Click event
+        """
+        # Check if click was on title (which contains [X])
+        if event.widget.id == "menu_title":
+            # Check if [X] position was clicked (right side)
+            # Click anywhere on the right third of the title to close
+            if event.x >= 25:  # Click on right side area
+                self.action_dismiss()
+        # Check if click was on a menu item
+        elif hasattr(event.widget, 'data_index'):
+            self.action_select(event.widget.data_index)
 
     def action_dismiss(self) -> None:
         """Close the modal."""
@@ -807,7 +843,7 @@ class DynflowTUI(App):
 
     #quit_title {
         background: $boost;
-        color: $text;
+        color: #EE7D42;
         padding: 1;
         text-align: center;
         text-style: bold;
@@ -842,7 +878,7 @@ class DynflowTUI(App):
 
     #about_title {
         background: $boost;
-        color: $text;
+        color: #EE7D42;
         padding: 0;
         text-style: bold;
     }
@@ -866,7 +902,7 @@ class DynflowTUI(App):
 
     #httpd_modal_title {
         background: $boost;
-        color: $text;
+        color: #EE7D42;
         padding: 0;
         text-style: bold;
     }
@@ -909,14 +945,14 @@ class DynflowTUI(App):
 
     #menu_title {
         background: $boost;
-        color: $text;
+        color: #EE7D42;
         padding: 0;
         text-style: bold;
         dock: top;
     }
 
     #menu_container Static {
-        padding: 0;
+        padding: 0 1;
         height: 1;
     }
 
@@ -987,8 +1023,7 @@ class DynflowTUI(App):
         if self.conf.db_exists:
             # Show database reuse screen
             from .db_reuse import DatabaseReuseScreen
-            self.install_screen(DatabaseReuseScreen(self.conf), "db_reuse")
-            self.switch_screen("db_reuse")
+            self.push_screen(DatabaseReuseScreen(self.conf))
         # If we need to import data, show loading screen first
         elif self.conf.writesql and self.sqlite and self.input_dynflow:
             self._start_data_import()
@@ -1068,6 +1103,9 @@ class DynflowTUI(App):
         Args:
             reuse: True to reuse existing DB, False to overwrite
         """
+        # Pop the db_reuse screen first
+        self.pop_screen()
+
         if reuse:
             # Reuse existing database - skip import
             self.conf.writesql = False
@@ -1081,20 +1119,20 @@ class DynflowTUI(App):
                     TasksScreen(self.db, self.conf, show_welcome=True),
                     "tasks"
                 )
-                self.switch_screen("welcome")
+                self.push_screen("welcome")
                 # Update welcome screen with stats
                 if self.import_stats:
                     self._update_welcome_stats()
             elif self.initial_mode == "httpd":
-                self.switch_screen("httpd")
+                self.push_screen("httpd")
             else:
-                # Install and switch to tasks screen
+                # Install and push tasks screen
                 if not self.is_screen_installed("tasks"):
                     self.install_screen(
                         TasksScreen(self.db, self.conf, show_welcome=False),
                         "tasks"
                     )
-                self.switch_screen("tasks")
+                self.push_screen("tasks")
         else:
             # Overwrite - remove old database and import new data
             self.conf._remove_database_files()

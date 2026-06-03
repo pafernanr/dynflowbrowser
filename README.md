@@ -4,10 +4,12 @@ Interactive browser for analyzing Dynflow task execution data from TheForeman/Re
 
 ## Overview
 
-DynflowBrowser provides two interfaces for analyzing Foreman/Satellite task execution:
-
-- **Terminal Browser**: Fast keyboard-driven TUI for console-based analysis
-- **HTTPD Service**: Web interface accessible from any browser
+- DynflowBrowser reads Dynflow csv files from a sosreport and saves the data to a SQLite file.
+- The database is used to obtain Tasks, Actions and Steps details.
+- Generates Dynflow and also Pulp statistics by execution time.
+- There are available two interfaces for analyzing Dynflow execution:
+  - **Terminal Browser**: Fast keyboard-driven TUI for console-based analysis
+  - **HTTPD Service**: Web interface accessible from any browser
 
 - HTTPD Service can be started in background while using the Terminal Browser.
 - Share HTTP or SSH tunnel access with colleagues to dig into the same Dynflow data.
@@ -20,6 +22,12 @@ DynflowBrowser provides two interfaces for analyzing Foreman/Satellite task exec
 - Dynflow and Pulp execution statistics
 - Timezone-aware date conversion. Dynflow and Pulp UTC converted to sosreport TZ.
 - System context display (hostname, version, CPU, RAM, tuning)
+
+## Screenshots
+
+| Tasks list | Task details | Terminal |
+| --- | --- | --- |
+| ![](https://raw.githubusercontent.com/pafernanr/dynflowbrowser/refs/heads/main/docs/files/_screenshot1.png) | ![](https://raw.githubusercontent.com/pafernanr/dynflowbrowser/refs/heads/main/docs/files/_screenshot2.png) | ![](https://raw.githubusercontent.com/pafernanr/dynflowbrowser/refs/heads/main/docs/files/_screenshot3.png) |
 
 ## Installation
 
@@ -38,48 +46,38 @@ Download from [Latest Release](https://github.com/pafernanr/dynflowbrowser/relea
 
 ## Usage
 
-### Basic usage
 ```bash
-# Analyze current directory sosreport
-dynflowbrowser
+usage: dynflowbrowser [-h] [-v] [--search SEARCH] [--state {paused,pending,planned,planning,running,stopped}]
+                      [--result {error,pending,success,warning}] [--task-days TASK_DAYS] [-o OUTPUT_PATH]
+                      [sosreport_path]
 
-# Analyze specific sosreport
-dynflowbrowser /path/to/sosreport
+Get sosreport dynflow files and generates user friendly html pages for tasks, plans, actions and steps
 
-# Filter by state and result
-dynflowbrowser --state stopped --result error
+positional arguments:
+  sosreport_path        Path to sos report folder. Default is current path.
 
-# Filter by time range
-dynflowbrowser --task-days 7
-
-# Complex search queries
-dynflowbrowser --search="label ~ Sync AND result = error"
-dynflowbrowser --search="state = stopped AND result != success"
-```
-
-### Search Query Syntax
-
-Supports foreman-rake compatible queries with operators:
-- Comparison: `=`, `!=`, `>`, `<`, `>=`, `<=`
-- Pattern matching: `~` (contains), `!~` (not contains)
-- Logical: `AND`, `OR`
+options:
+  -h, --help            show this help message and exit
+  -v, --version         show program's version number and exit
+  --search SEARCH       Search query using foreman-rake syntax. Supports operators: =, !=, ~, !~, >, <, >=, <= and connectors: AND,
+                        OR
+  --state {paused,pending,planned,planning,running,stopped}
+                        Filter by task state. Valid: paused, pending, planned, planning, running, stopped
+  --result {error,pending,success,warning}
+                        Filter by task result. Valid: error, pending, success, warning
+  --task-days TASK_DAYS
+                        Import only tasks from last N days. Same as foreman-rake TASK_DAYS parameter.
+  -o OUTPUT_PATH, --output_path OUTPUT_PATH
+                        Write output to this path. Default is './dynflowbrowser/'.
 
 Examples:
-```bash
---search="result != success"
---search="label ~ Manifest"
---search="state = stopped AND result = error"
+  # Combine state, result and time filters
+  dynflowbrowser --state stopped --result error --task-days 10
+
+  # Complex search query (AND / OR operators)
+  dynflowbrowser --search="result != success" --task-days 3
+  dynflowbrowser --search="label ~ Sync AND state = stopped AND result = error"
 ```
-
-### Terminal Interface
-
-Navigate with keyboard shortcuts:
-- `t` - Toggle between Action/ID and Label/UUID views
-- `s` - Toggle Dynflow/Pulp statistics panel
-- `h` - Show HTTP access information
-- `Enter` - Expand/collapse task details
-- `d` - Show action/step details popup
-- `q` or `Esc` - Quit (with confirmation)
 
 ### Web Interface
 
@@ -90,7 +88,7 @@ Start the HTTPD service from the welcome screen or terminal browser:
 
 ## Exporting Tasks from Foreman Database
 
-For systems where sosreport doesn't include dynflow data:
+For systems where `sos` is not installed or doesn't include dynflow data:
 
 ```bash
 # Run on the Satellite server
@@ -103,12 +101,6 @@ dynflowbrowser-export-tasks
 ```
 
 Creates a compressed export file compatible with DynflowBrowser.
-
-## Screenshots
-
-| Tasks list | Task details | Terminal |
-| --- | --- | --- |
-| ![](https://raw.githubusercontent.com/pafernanr/dynflowbrowser/refs/heads/main/docs/files/_screenshot1.png) | ![](https://raw.githubusercontent.com/pafernanr/dynflowbrowser/refs/heads/main/docs/files/_screenshot2.png) | ![](https://raw.githubusercontent.com/pafernanr/dynflowbrowser/refs/heads/main/docs/files/_screenshot3.png) |
 
 ## Project Structure
 

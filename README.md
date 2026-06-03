@@ -4,15 +4,25 @@ Interactive browser for analyzing Dynflow task execution data from TheForeman/Re
 
 ## Overview
 
-- DynflowBrowser reads Dynflow csv files from a sosreport and saves the data to a SQLite file.
-- The database is used to obtain Tasks, Actions and Steps details.
-- Generates Dynflow and also Pulp statistics by execution time.
+- DynflowBrowser is based on [DynflowParser](https://github.com/pafernanr/dynflowparser/).
+- Compared to previous application, DynflowBrowser is much more FASTER because it does not generate all Action pages but only saves data to a SQLite file.
 - There are available two interfaces for analyzing Dynflow execution:
-  - **Terminal Browser**: Fast keyboard-driven TUI for console-based analysis
-  - **HTTPD Service**: Web interface accessible from any browser
+  - **Terminal Browser**: Fast keyboard/mouse-driven specifically designed TUI Dynflow browser.
+  - **HTTPD Service**: Web interface accessible from any browser.
 
-- HTTPD Service can be started in background while using the Terminal Browser.
-- Share HTTP or SSH tunnel access with colleagues to dig into the same Dynflow data.
+## How it works?
+
+1. It reads Dynflow csv files from a sosreport and saves the data to a SQLite file.
+   - Imported data can be filtered using similar sintax as the well known `foreman-rake`. E.g:
+      ~~~
+      # foreman-rake foreman_tasks:export_tasks TASK_SEARCH='result != success' TASK_DAYS=3
+      #
+      # dynflowbrowser --search="result != success" --task-days 3
+      ~~~
+2. The database is used to get the Tasks details while browsing using the TUI or HTTP server.
+  - HTTPD Service can be started in background while using the Terminal Browser.
+  - Share HTTP or SSH tunnel access with colleagues to dig into the same Dynflow data.
+3. Dynflow and Pulp statistics by execution time are available for all/specific Tasks.
 
 ## Key Features
 
@@ -79,13 +89,6 @@ Examples:
   dynflowbrowser --search="label ~ Sync AND state = stopped AND result = error"
 ```
 
-### Web Interface
-
-Start the HTTPD service from the welcome screen or terminal browser:
-- Direct HTTP access on detected network interfaces
-- SSH tunnel support for remote access
-- Responsive layout with collapsible task hierarchies
-
 ## Exporting Tasks from Foreman Database
 
 For systems where `sos` is not installed or doesn't include dynflow data:
@@ -101,19 +104,3 @@ dynflowbrowser-export-tasks
 ```
 
 Creates a compressed export file compatible with DynflowBrowser.
-
-## Project Structure
-
-```
-dynflowbrowser/
-├── bin/              # Entry point scripts
-├── lib/
-│   ├── ui/
-│   │   ├── text/    # Terminal UI (Textual framework)
-│   │   ├── httpd/   # Dynamic HTTP server
-│   │   └── shared/  # Shared components
-│   ├── configuration.py
-│   ├── inputdynflow.py
-│   └── outputsqlite.py
-└── plugins/          # Plugin system
-```

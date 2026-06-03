@@ -1145,6 +1145,15 @@ class DynflowTUI(App):
             if self.sqlite and self.input_dynflow:
                 self._start_data_import()
 
+    def _show_error_modal(self, message: str) -> None:
+        """Show error message in a modal dialog.
+
+        Args:
+            message: Error message to display
+        """
+        from .app import DetailModal
+        self.push_screen(DetailModal("Error", message))
+
     def _start_data_import(self) -> None:
         """Start the data import process with loading screen."""
         from .loading import LoadingScreen
@@ -1168,8 +1177,12 @@ class DynflowTUI(App):
         stats = {}
 
         try:
+            # Create error callback to show modal on errors
+            def error_callback(msg):
+                self.call_from_thread(self._show_error_modal, msg)
+
             # Create SQLite connection in this worker thread
-            sqlite_worker = OutputSQLite(self.conf)
+            sqlite_worker = OutputSQLite(self.conf, error_callback)
 
             # Import each data type with progress
             for dtype in ['tasks', 'plans', 'actions', 'steps']:
@@ -1215,14 +1228,16 @@ class DynflowTUI(App):
 
         except Exception as e:
             import traceback
-            error_msg = f"{e}\n{traceback.format_exc()}"
+            error_msg = f"Import Error:\n{str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+            # Show error in modal
+            self.call_from_thread(self._show_error_modal, error_msg)
+            # Update loading screen status
             self.call_from_thread(
                 self._update_loading_status,
-                f"[bold red]Error: {error_msg}[/bold red]"
+                "[bold red]Import failed - see error modal[/bold red]"
             )
-            time.sleep(5)
-            # Still try to switch to welcome on error
-            self.call_from_thread(self._switch_to_welcome)
+            # Keep the worker thread alive so the modal stays visible
+            time.sleep(3600)
 
     def _switch_to_welcome(self) -> None:
         """Switch to welcome screen after import completes."""

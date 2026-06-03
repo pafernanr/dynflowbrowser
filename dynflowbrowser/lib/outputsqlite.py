@@ -6,9 +6,9 @@ from dynflowbrowser.lib.util import Util
 
 
 class OutputSQLite:
-    def __init__(self, conf):
+    def __init__(self, conf, error_callback=None):
         self.conf = conf
-        self.util = Util()
+        self.util = Util(error_callback=error_callback)
         self._conn = sqlite3.connect(conf.dbfile)
         self._cursor = self._conn.cursor()
 

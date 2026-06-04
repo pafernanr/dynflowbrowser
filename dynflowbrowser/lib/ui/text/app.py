@@ -396,18 +396,17 @@ class HttpdAccessModal(ModalScreen):
         )
         container.mount(message)
 
-        # Buttons
-        button_container = Horizontal(id="httpd_prompt_buttons")
-        container.mount(Center(button_container))
-
-        # Now mount buttons to the already-mounted container
+        # Buttons - create and compose before mounting
         start_btn = Button("Start Server", variant="success", id="start-btn")
         cancel_btn = Button("Cancel", variant="warning", id="cancel-btn")
-        button_container.mount(start_btn)
-        button_container.mount(cancel_btn)
 
-        # Set default focus on Start Server button
-        start_btn.focus()
+        button_container = Horizontal(id="httpd_prompt_buttons")
+        button_container._add_children(start_btn, cancel_btn)
+
+        container.mount(Center(button_container))
+
+        # Set default focus on Start Server button after mounting
+        self.call_after_refresh(lambda: start_btn.focus())
 
     def _show_access_info(self, container) -> None:
         """Show server access information.

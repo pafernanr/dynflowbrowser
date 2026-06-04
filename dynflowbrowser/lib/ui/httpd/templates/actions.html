@@ -145,8 +145,8 @@
                                         <button class="btn-inline" data-target="stepdata-{{a[0]}}-{{s[1]}}" title="Show Data">Data</button>
                                     </div>
                                 </div>
-                                <span class="action-metric">{{ s[4].split(".")[0] }}</span>
-                                <span class="action-metric">{{ s[5].split(".")[0] }}</span>
+                                <span class="action-metric">{{ s[4].split(".")[0] if s[4] else '' }}</span>
+                                <span class="action-metric">{{ s[5].split(".")[0] if s[5] else '' }}</span>
                                 <span class="action-metric">{{ "{:0,.2f}".format(s[6]) }}</span>
                                 <span class="action-metric">{{ "{:0,.2f}".format(s[7]) }}</span>
                                 <span class="status-badge status-{{s[3]}}">{{s[3]}}</span>

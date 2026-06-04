@@ -1109,6 +1109,10 @@ class DynflowTUI(App):
         if reuse:
             # Reuse existing database - skip import
             self.conf.writesql = False
+            # Open database connection now
+            if self.db is None:
+                from dynflowbrowser.lib.outputsqlite import OutputSQLite
+                self.db = OutputSQLite(self.conf)
             # Count existing data for stats
             self._count_existing_data()
             # Continue to welcome screen
@@ -1156,6 +1160,9 @@ class DynflowTUI(App):
 
     def _start_data_import(self) -> None:
         """Start the data import process with loading screen."""
+        # Save execution args before starting import
+        self.conf._save_execution_args()
+
         from .loading import LoadingScreen
         loading_screen = LoadingScreen()
         self.install_screen(loading_screen, "loading")
@@ -1241,6 +1248,11 @@ class DynflowTUI(App):
 
     def _switch_to_welcome(self) -> None:
         """Switch to welcome screen after import completes."""
+        # Open database connection after import
+        if self.db is None:
+            from dynflowbrowser.lib.outputsqlite import OutputSQLite
+            self.db = OutputSQLite(self.conf)
+
         # Switch to welcome screen
         self.install_screen(WelcomeScreen(), "welcome")
         self.install_screen(

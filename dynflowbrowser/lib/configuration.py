@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 
 from dynflowbrowser.lib.util import Util
 
@@ -132,6 +133,24 @@ Examples:
             self.args.task_days is None
         )
 
+        # Validate sosreport path exists
+        if not os.path.exists(self.args.sosreport_path):
+            print(f"ERROR: sosreport path does not exist: {self.args.sosreport_path}")
+            sys.exit(1)
+
+        # Check for required files
+        required_files = [
+            'sos_commands/systemd/timedatectl',
+            'hostname',
+            'sos_commands/foreman/dynflow_schema_info'
+        ]
+        for required_file in required_files:
+            file_path = os.path.join(self.args.sosreport_path, required_file)
+            if not os.path.exists(file_path):
+                print(f"ERROR: Required file not found: {file_path}")
+                print(f"The path '{self.args.sosreport_path}' does not appear to be a valid sosreport directory.")
+                sys.exit(1)
+
         self.set_sos_details()
         self.args.output_path = (
             f"{self.args.output_path}/dynflowbrowser/{self.sos['sosname']}"
@@ -164,8 +183,8 @@ Examples:
                 self._remove_database_files()
                 print("Overwriting database...")
 
-        # Save execution arguments to file only when creating new DB
-        # In TUI mode, defer saving until user confirms overwrite
+        # In TUI mode, args are saved just before DB creation
+        # In non-TUI mode (CLI), save args now
         if self.writesql and not self.tui_mode:
             self._save_execution_args()
 

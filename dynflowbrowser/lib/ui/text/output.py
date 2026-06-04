@@ -21,7 +21,8 @@ class TextOutput(BaseOutput):
             conf: Configuration object with args and settings
         """
         super().__init__(conf)
-        self.db = OutputSQLite(conf)
+        # Don't open DB yet - wait until user decides to reuse or create
+        self.db = None
 
     def write(self, sqlite=None, input_dynflow=None):
         """Launch interactive Textual TUI application.

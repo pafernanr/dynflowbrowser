@@ -537,8 +537,12 @@ class DynamicHttpServer(HttpServer):
                         self.end_headers()
                         self.wfile.write(html_content.encode('utf-8'))
                     except Exception as e:
-                        # Send error response
-                        error_msg = f"Error generating page: {str(e)}"
+                        # Send error response with traceback
+                        import traceback
+                        error_msg = (
+                            f"Error generating page: {str(e)}\n\n"
+                            f"Traceback:\n{traceback.format_exc()}"
+                        )
                         self.send_response(500)
                         self.send_header('Content-type', 'text/plain')
                         self.end_headers()

@@ -115,7 +115,6 @@ class HttpdInfoScreen(Screen):
     def on_mount(self) -> None:
         """Initialize when screen is mounted."""
         self._mounted = True
-        logs = self.query_one("#server-logs", RichLog)
 
         # Check if server was started externally before mount
         server_running = (
@@ -125,11 +124,17 @@ class HttpdInfoScreen(Screen):
 
         if server_running:
             self._sync_external_server()
-        else:
-            logs.write("[dim]HTTP Server ready. Press (s) to start.[/dim]")
 
     def on_show(self) -> None:
         """Called when screen becomes visible."""
+        self._check_server_state()
+
+    def on_screen_resume(self) -> None:
+        """Called when screen is resumed (Textual lifecycle hook)."""
+        self._check_server_state()
+
+    def _check_server_state(self) -> None:
+        """Check and sync server state."""
         # Check global server state (in case it was started from modal)
         server_running = (
             hasattr(self.app, 'httpd_server')
@@ -168,12 +173,6 @@ class HttpdInfoScreen(Screen):
         """Sync state when server was started externally (e.g., from modal)."""
         if not hasattr(self.app, 'httpd_server') or not self.app.httpd_server:
             return
-
-        logs = self.query_one("#server-logs", RichLog)
-        logs.write(
-            "[bold green]HTTP Server detected (started externally)"
-            "[/bold green]"
-        )
 
         # Update server info
         self.server_info = {
@@ -275,7 +274,9 @@ class HttpdInfoScreen(Screen):
 
         # Clear HTTP access container
         try:
-            access_container = self.query_one("#http-access-container", Container)
+            access_container = self.query_one(
+                "#http-access-container", Container
+            )
             access_container.remove_children()
         except Exception:
             pass

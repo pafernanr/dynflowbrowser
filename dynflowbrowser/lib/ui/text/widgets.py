@@ -30,6 +30,29 @@ class AppHeader(Static):
         return text
 
 
+class AppHeaderWithSeparator(Static):
+    """Container for app header with separator line."""
+
+    DEFAULT_CSS = """
+    AppHeaderWithSeparator {
+        height: auto;
+        dock: top;
+    }
+
+    AppHeaderWithSeparator > Static {
+        height: 1;
+    }
+    """
+
+    def compose(self):
+        """Compose header with title and separator."""
+        from dynflowbrowser.lib.configuration import get_version
+        version = get_version()
+
+        yield AppHeader()
+        yield HeaderSeparator(version=version)
+
+
 def format_date(date_str):
     """Format date to YYYY-MM-DD HH:MM:SS (19 chars).
 

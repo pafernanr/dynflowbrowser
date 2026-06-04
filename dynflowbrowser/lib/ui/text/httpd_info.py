@@ -9,7 +9,7 @@ from textual.widgets import Footer
 from textual.widgets import RichLog
 from textual.widgets import Static
 
-from .widgets import AppHeader
+from .widgets import AppHeaderWithSeparator
 
 
 class HttpdInfoScreen(Screen):
@@ -90,7 +90,7 @@ class HttpdInfoScreen(Screen):
 
     def compose(self) -> ComposeResult:
         """Compose the httpd info screen."""
-        yield AppHeader()
+        yield AppHeaderWithSeparator()
 
         # HTTP access info section (will be populated when server starts)
         yield Container(id="http-access-container")
@@ -273,21 +273,28 @@ class HttpdInfoScreen(Screen):
 
         self.server_running = False
 
-        # Clear connection info
-        direct_content = self.query_one("#direct-access-content", Static)
-        direct_content.update("Server stopped")
-        ssh_content = self.query_one("#ssh-tunnel-content", Static)
-        ssh_content.update("Server stopped")
+        # Clear HTTP access container
+        try:
+            access_container = self.query_one("#http-access-container", Container)
+            access_container.remove_children()
+        except Exception:
+            pass
 
         # Update status message
-        status_msg = self.query_one("#server-status-msg", Static)
-        status_msg.update(
-            "Press [bold cyan](h)[/bold cyan] to start the server"
-        )
+        try:
+            status_msg = self.query_one("#server-status-msg", Static)
+            status_msg.update(
+                "Press [bold cyan](h)[/bold cyan] to start the server"
+            )
+        except Exception:
+            pass
 
         # Show stopped tip
-        esc_tip = self.query_one("#server-esc-tip", Static)
-        esc_tip.update("HTTPD is not required for Terminal Browser")
+        try:
+            esc_tip = self.query_one("#server-esc-tip", Static)
+            esc_tip.update("HTTPD is not required for Terminal Browser")
+        except Exception:
+            pass
 
         logs.write("[dim]HTTP Server stopped.[/dim]")
 

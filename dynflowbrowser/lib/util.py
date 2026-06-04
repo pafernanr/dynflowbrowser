@@ -71,14 +71,11 @@ class Util:
                 return datetime.datetime.strptime(d, v)
             except ValueError:
                 continue
-        # TODO: Fix dynflowparser to not output invalid dates like '1'
-        # For now, log warning and return None to skip corrupt date fields
         self.debug('W', f"Invalid date value {d!r}, setting to NULL")
-        return None
+        sys.exit(1)
 
     def change_timezone(self, tz, d):
         if d is not None and d != "":
-            parsed_date = self.date_from_string(d)
-            if parsed_date is not None:
-                return self.to_timezone(tz, parsed_date)
-        return None
+            return self.to_timezone(
+                tz, self.date_from_string(d))
+        return d

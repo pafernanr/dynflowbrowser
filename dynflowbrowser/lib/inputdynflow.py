@@ -121,14 +121,6 @@ class InputDynflow:
                     'class', 'action_class', 'queue', 'error',
                     'children', 'data']
             }
-            if self.conf.dynflowdata['version'] == "25":  # Satellite 6.19
-                # last two fields changed position:
-                # before: 'user_id', 'state_updated_at'
-                self.conf.dynflowdata['tasks']['headers'] = [
-                    'id', 'dtype', 'label', 'started_at',
-                    'ended_at', 'state', 'result', 'external_id',
-                    'parent_task_id', 'start_at', 'start_before',
-                    'action', 'state_updated_at', 'user_id']
         else:
             print("ERROR: Dynflow schema version "
                   + f"{self.conf.dynflowdata['version']} is not supported. "

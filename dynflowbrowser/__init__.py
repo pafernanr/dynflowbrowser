@@ -30,7 +30,8 @@ class DynflowBrowser:
             dfrom = self.util.date_from_string('1974-04-10')
             dto = self.util.date_from_string('2999-01-01')
         # workaround for disordered fields on some csv files
-        if " " not in dynflow[2][13]:
+        # user_id is an integer en psql hence len=10
+        if len(dynflow[2][13]) < 11:
             self.conf.dynflowdata['tasks']['headers'] = [
                 'id', 'dtype', 'label', 'started_at', 'ended_at',
                 'state', 'result', 'external_id', 'parent_task_id',

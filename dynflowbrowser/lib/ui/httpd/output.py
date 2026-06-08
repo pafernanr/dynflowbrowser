@@ -102,7 +102,7 @@ class HttpdOutput(BaseOutput):
             )
             sql = (
                 "SELECT execution_plan_uuid, output "
-                + "FROM actions "
+                + "FROM dynflow_actions "
                 + f"WHERE execution_plan_uuid IN ({uuid_placeholders}) "
                 + "AND output LIKE '%pulp_tasks%'"
             )
@@ -113,7 +113,7 @@ class HttpdOutput(BaseOutput):
         else:
             sql = (
                 "SELECT execution_plan_uuid, output "
-                + "FROM actions WHERE output LIKE '%pulp_tasks%'"
+                + "FROM dynflow_actions WHERE output LIKE '%pulp_tasks%'"
             )
             rows = self.db.query(sql)
 
@@ -130,7 +130,7 @@ class HttpdOutput(BaseOutput):
             sql = (
                 "SELECT execution_plan_uuid, action_class, "
                 + "execution_time "
-                + "FROM steps "
+                + "FROM dynflow_steps "
                 + f"WHERE execution_plan_uuid IN ({uuid_placeholders})"
             )
             steps = self.db.query(
@@ -140,7 +140,7 @@ class HttpdOutput(BaseOutput):
         else:
             sql = (
                 "SELECT execution_plan_uuid, action_class, execution_time "
-                + "FROM steps"
+                + "FROM dynflow_steps"
             )
             steps = self.db.query(sql)
 

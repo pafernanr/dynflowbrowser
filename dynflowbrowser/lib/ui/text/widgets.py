@@ -382,8 +382,8 @@ class TasksDataTable(DataTable):
             "SELECT t.parent_task_id, t.id, t.external_id,"
             " t.label, t.state, t.result, t.started_at,"
             " t.ended_at, t.action, p.state, p.result"
-            " FROM tasks t"
-            " LEFT JOIN plans p ON t.external_id=p.uuid"
+            " FROM foreman_tasks_tasks t"
+            " LEFT JOIN dynflow_execution_plans p ON t.external_id=p.uuid"
             " WHERE t.parent_task_id=''"
             + where
             + " GROUP BY t.id"
@@ -396,8 +396,8 @@ class TasksDataTable(DataTable):
             "SELECT t.parent_task_id, t.id, t.external_id,"
             " t.label, t.state, t.result, t.started_at,"
             " t.ended_at, t.action"
-            " FROM tasks t"
-            " LEFT JOIN plans p ON t.external_id=p.uuid"
+            " FROM foreman_tasks_tasks t"
+            " LEFT JOIN dynflow_execution_plans p ON t.external_id=p.uuid"
             " WHERE t.parent_task_id!=''"
             + where
             + " ORDER BY t.started_at ASC"
@@ -642,8 +642,8 @@ class ActionsDataTable(DataTable):
                 "SELECT s.action_id, s.action_class, p.result, "
                 "MIN(s.started_at), MAX(s.ended_at), "
                 "SUM(s.execution_time) "
-                "FROM steps s "
-                "LEFT JOIN plans p ON s.execution_plan_uuid = p.uuid "
+                "FROM dynflow_steps s "
+                "LEFT JOIN dynflow_execution_plans p ON s.execution_plan_uuid = p.uuid "
                 "WHERE s.execution_plan_uuid = ? "
                 "GROUP BY s.action_id "
                 "ORDER BY s.action_id"
@@ -654,8 +654,8 @@ class ActionsDataTable(DataTable):
                 "SELECT s.action_id, s.action_class, p.result, "
                 "MIN(s.started_at), MAX(s.ended_at), "
                 "SUM(s.execution_time) "
-                "FROM steps s "
-                "LEFT JOIN plans p ON s.execution_plan_uuid = p.uuid "
+                "FROM dynflow_steps s "
+                "LEFT JOIN dynflow_execution_plans p ON s.execution_plan_uuid = p.uuid "
                 "GROUP BY s.execution_plan_uuid, s.action_id "
                 "ORDER BY MIN(s.started_at) DESC "
                 "LIMIT 1000"
@@ -720,8 +720,8 @@ class ActionDetailsHeader(Static):
         # Get task/plan info
         task_query = """
             SELECT p.label, t.action, t.id
-            FROM plans p
-            LEFT JOIN tasks t ON p.uuid = t.external_id
+            FROM dynflow_execution_plans p
+            LEFT JOIN foreman_tasks_tasks t ON p.uuid = t.external_id
             WHERE p.uuid = ?
             LIMIT 1
         """

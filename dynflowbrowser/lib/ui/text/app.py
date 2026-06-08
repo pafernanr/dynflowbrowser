@@ -28,7 +28,7 @@ class TasksScreen(Screen):
         Binding("escape", "back_to_welcome", "Back", show=True),
         Binding("h", "show_httpd_modal", "HTTP Access", show=True,
                 key_display="│ h"),
-        Binding("s", "toggle_stats", "Dynflow/Pulp Stats", show=True),
+        Binding("s", "toggle_stats", "Show/Hide Stats", show=True),
         Binding("t", "toggle_columns", "View Foreman/Dynflow", show=True,
                 key_display="│ t"),
         Binding("d", "app.toggle_dark", "Dark Mode", show=False),
@@ -152,7 +152,7 @@ class ActionsScreen(Screen):
         Binding("escape", "app.pop_screen", "Back", show=True),
         Binding("h", "show_httpd_modal", "HTTP Access", show=True,
                 key_display="│ h"),
-        Binding("s", "toggle_stats", "Dynflow/Pulp Stats", show=True),
+        Binding("s", "toggle_stats", "Show/Hide Stats", show=True),
         Binding("d", "show_detail_menu", "Details", show=True,
                 key_display="│ d"),
     ]

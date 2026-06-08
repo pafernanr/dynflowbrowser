@@ -85,8 +85,8 @@ class BaseDataProvider:
             "SELECT t.parent_task_id, t.id, t.external_id,"
             + " t.label, t.state, t.result, t.started_at,"
             + " t.ended_at, t.action, p.state, p.result"
-            + " FROM tasks t"
-            + " LEFT JOIN plans p"
+            + " FROM foreman_tasks_tasks t"
+            + " LEFT JOIN dynflow_execution_plans p"
             + " ON t.external_id=p.uuid"
             + " WHERE t.parent_task_id=''"
             + where
@@ -103,8 +103,8 @@ class BaseDataProvider:
             "SELECT t.parent_task_id, t.id, t.external_id,"
             + " t.label, t.state, t.result, t.started_at,"
             + " t.ended_at, t.action"
-            + " FROM tasks t"
-            + " LEFT JOIN plans p"
+            + " FROM foreman_tasks_tasks t"
+            + " LEFT JOIN dynflow_execution_plans p"
             + " ON t.external_id=p.uuid"
             + " WHERE t.parent_task_id!=''"
             + where
@@ -142,7 +142,7 @@ class BaseDataProvider:
         """
         return self.db.query(
             """SELECT SUM(execution_time), COUNT(s.id), s.action_class
-            FROM steps s
+            FROM dynflow_steps s
             GROUP BY s.action_class
             ORDER BY SUM(execution_time) DESC
             LIMIT 5

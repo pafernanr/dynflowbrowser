@@ -25,10 +25,10 @@ class ActionQueries:
             + " MAX(t.parent_task_id), s.execution_time,"
             + " MIN(s.started_at), MAX(s.ended_at),"
             + " SUM(s.real_time), SUM(s.execution_time)"
-            + " FROM steps s"
-            + " LEFT JOIN tasks t ON s.execution_plan_uuid = t.external_id"
-            + " LEFT JOIN plans p ON s.execution_plan_uuid = p.uuid"
-            + " LEFT JOIN actions a ON s.execution_plan_uuid = "
+            + " FROM dynflow_steps s"
+            + " LEFT JOIN foreman_tasks_tasks t ON s.execution_plan_uuid = t.external_id"
+            + " LEFT JOIN dynflow_execution_plans p ON s.execution_plan_uuid = p.uuid"
+            + " LEFT JOIN dynflow_actions a ON s.execution_plan_uuid = "
             + "a.execution_plan_uuid"
             + " AND s.action_id = a.id"
             + " WHERE s.execution_plan_uuid = ?"
@@ -52,8 +52,8 @@ class ActionQueries:
                    a.run_step_id, a.class, a.data, a.input, a.output,
                    p.result, p.label,
                    a.caller_execution_plan_id
-            FROM actions a
-            LEFT JOIN plans p ON a.execution_plan_uuid = p.uuid
+            FROM dynflow_actions a
+            LEFT JOIN dynflow_execution_plans p ON a.execution_plan_uuid = p.uuid
             WHERE a.execution_plan_uuid = ?
             ORDER BY a.id
         """
@@ -71,7 +71,7 @@ class ActionQueries:
             list: Step records
         """
         sql = """
-            SELECT * FROM steps
+            SELECT * FROM dynflow_steps
             WHERE execution_plan_uuid = ?
             ORDER BY id
         """
@@ -115,7 +115,7 @@ class StatsQueries:
         """
         sql = """
             SELECT SUM(execution_time), COUNT(s.id), s.action_class
-            FROM steps s
+            FROM dynflow_steps s
             GROUP BY s.action_class
             ORDER BY SUM(execution_time) DESC
             LIMIT 5
@@ -135,7 +135,7 @@ class StatsQueries:
         """
         sql = """
             SELECT SUM(execution_time), COUNT(s.id), s.action_class
-            FROM steps s
+            FROM dynflow_steps s
             WHERE s.execution_plan_uuid = ?
             GROUP BY s.action_class
             ORDER BY SUM(execution_time) DESC
@@ -153,7 +153,7 @@ class StatsQueries:
         Returns:
             list: Actions with output field
         """
-        sql = "SELECT a.output FROM actions a"
+        sql = "SELECT a.output FROM dynflow_actions a"
         return db.query(sql)
 
     @staticmethod
@@ -169,7 +169,7 @@ class StatsQueries:
         """
         sql = """
             SELECT a.output
-            FROM actions a
+            FROM dynflow_actions a
             WHERE a.execution_plan_uuid = ?
         """
         return db.query(sql, (plan_uuid,))

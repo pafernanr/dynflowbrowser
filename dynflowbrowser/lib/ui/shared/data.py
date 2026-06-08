@@ -133,8 +133,8 @@ class DataProvider:
                    a.run_step_id, a.class, a.data, a.input, a.output,
                    p.result, p.label,
                    a.caller_execution_plan_id
-            FROM actions a
-            LEFT JOIN plans p ON a.execution_plan_uuid = p.uuid
+            FROM dynflow_actions a
+            LEFT JOIN dynflow_execution_plans p ON a.execution_plan_uuid = p.uuid
             WHERE a.execution_plan_uuid = ?
             ORDER BY a.id
         """
@@ -150,7 +150,7 @@ class DataProvider:
             dict: Steps grouped by action_id
         """
         query = """
-            SELECT * FROM steps
+            SELECT * FROM dynflow_steps
             WHERE execution_plan_uuid = ?
             ORDER BY action_id, id
         """

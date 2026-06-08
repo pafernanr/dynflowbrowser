@@ -60,32 +60,32 @@ class OutputSQLite:
         return self.fetchall()
 
     def insert_tasks(self, values):
-        query = "INSERT INTO tasks VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+        query = "INSERT INTO foreman_tasks_tasks VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
         self.util.debug("D", query + ", " + str(values))
         self.executemany(query, values)
         # Commit removed - now handled by caller in write()
 
     def insert_plans(self, values):
-        query = "INSERT INTO plans VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+        query = "INSERT INTO dynflow_execution_plans VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
         self.util.debug("D", query + " " + str(values))
         self.executemany(query, values)
         # Commit removed - now handled by caller in write()
 
     def insert_actions(self, values):
-        query = "INSERT INTO actions VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+        query = "INSERT INTO dynflow_actions VALUES (?,?,?,?,?,?,?,?,?,?,?)"
         self.util.debug("D", query + " " + str(values))
         self.executemany(query, values)
         # Commit removed - now handled by caller in write()
 
     def insert_steps(self, values):
-        query = "INSERT INTO steps VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+        query = "INSERT INTO dynflow_steps VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
         self.util.debug("D", query + " " + str(values))
         self.executemany(query, values)
         # Commit removed - now handled by caller in write()
 
     def create_tables(self):
         self.execute("""SELECT name FROM sqlite_master
-                     WHERE type='table' AND name='tasks';""")
+                     WHERE type='table' AND name='foreman_tasks_tasks';""")
         if not self.fetchone():
             self.create_tasks()
             self.create_plans()
@@ -93,7 +93,7 @@ class OutputSQLite:
             self.create_steps()
 
     def create_tasks(self):
-        self.execute("""CREATE TABLE IF NOT EXISTS tasks (
+        self.execute("""CREATE TABLE IF NOT EXISTS foreman_tasks_tasks (
         id TEXT,
         type TEXT,
         label TEXT,
@@ -113,7 +113,7 @@ class OutputSQLite:
         self.commit()
 
     def create_plans(self):
-        self.execute("""CREATE TABLE IF NOT EXISTS plans (
+        self.execute("""CREATE TABLE IF NOT EXISTS dynflow_execution_plans (
         uuid TEXT,
         state TEXT,
         result TEXT,
@@ -134,7 +134,7 @@ class OutputSQLite:
         self.commit()
 
     def create_actions(self):
-        self.execute("""CREATE TABLE IF NOT EXISTS actions (
+        self.execute("""CREATE TABLE IF NOT EXISTS dynflow_actions (
         execution_plan_uuid TEXT,
         id INTEGER,
         caller_execution_plan_id INTEGER,
@@ -151,7 +151,7 @@ class OutputSQLite:
         self.commit()
 
     def create_steps(self):
-        self.execute("""CREATE TABLE IF NOT EXISTS steps (
+        self.execute("""CREATE TABLE IF NOT EXISTS dynflow_steps (
         execution_plan_uuid TEXT,
         id INTEGER,
         action_id INTEGER,
@@ -176,33 +176,33 @@ class OutputSQLite:
         """Create indexes after data insertion for better performance."""
 
         # Tasks indexes
-        self.execute("CREATE INDEX IF NOT EXISTS tasks_id ON tasks(id)")
+        self.execute("CREATE INDEX IF NOT EXISTS tasks_id ON foreman_tasks_tasks(id)")
         self.execute(
             "CREATE INDEX IF NOT EXISTS tasks_external_id "
-            "ON tasks(external_id)")
+            "ON foreman_tasks_tasks(external_id)")
 
         # Plans indexes
-        self.execute("CREATE INDEX IF NOT EXISTS plans_uuid ON plans(uuid)")
+        self.execute("CREATE INDEX IF NOT EXISTS plans_uuid ON dynflow_execution_plans(uuid)")
 
         # Actions indexes
         self.execute(
             "CREATE INDEX IF NOT EXISTS actions_execution_plan_id "
-            "ON actions(execution_plan_uuid)")
-        self.execute("CREATE INDEX IF NOT EXISTS actions_id ON actions(id)")
+            "ON dynflow_actions(execution_plan_uuid)")
+        self.execute("CREATE INDEX IF NOT EXISTS actions_id ON dynflow_actions(id)")
 
         # Steps indexes
         self.execute(
             "CREATE INDEX IF NOT EXISTS steps_execution_plan_uuid "
-            "ON steps(execution_plan_uuid)")
+            "ON dynflow_steps(execution_plan_uuid)")
         self.execute(
             "CREATE INDEX IF NOT EXISTS steps_action_id "
-            "ON steps(action_id)")
-        self.execute("CREATE INDEX IF NOT EXISTS steps_id ON steps(id)")
+            "ON dynflow_steps(action_id)")
+        self.execute("CREATE INDEX IF NOT EXISTS steps_id ON dynflow_steps(id)")
 
         # Compound indexes for better JOIN performance
         self.execute(
             "CREATE INDEX IF NOT EXISTS idx_steps_plan_action "
-            "ON steps(execution_plan_uuid, action_id)")
+            "ON dynflow_steps(execution_plan_uuid, action_id)")
 
         self.commit()
 

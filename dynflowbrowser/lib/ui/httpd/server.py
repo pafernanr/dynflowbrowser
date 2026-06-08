@@ -551,16 +551,46 @@ class DynamicHttpServer(HttpServer):
                     # Serve static files normally (CSS, JS, etc.)
                     super().do_GET()
 
-            def log_message(self, format, *args):
-                """Log HTTP requests."""
-                message = format % args
+            def log_request(self, code='-', size='-'):
+                """Log successful requests and errors with path."""
+                if isinstance(code, http.server.HTTPStatus):
+                    code = code.value
+                # Format: timestamp IP "METHOD path" code size
+                import sys
+                import time
+                timestamp = time.strftime("%H:%M:%S", time.localtime())
+                log_line = (
+                    f'{timestamp} {self.address_string()} '
+                    f'"{self.command} {self.path}" {code} {size}'
+                )
                 # Send to callback if available
                 if server_instance.log_callback:
-                    server_instance.log_callback(
-                        f"{self.address_string()} - {message}"
-                    )
+                    server_instance.log_callback(log_line)
                 # Also print to console if not quiet
                 if not server_instance.quiet:
-                    super().log_message(format, *args)
+                    print(log_line, file=sys.stderr)
+
+            def log_error(self, format, *args):
+                """Log errors with request context."""
+                # Only log errors if not quiet
+                if not server_instance.quiet:
+                    import sys
+                    import time
+                    timestamp = time.strftime("%H:%M:%S", time.localtime())
+                    message = format % args
+                    log_line = (
+                        f'{timestamp} {self.address_string()} '
+                        f'"{self.command} {self.path}" - {message}'
+                    )
+                    print(log_line, file=sys.stderr)
+                    # Send to callback if available
+                    if server_instance.log_callback:
+                        server_instance.log_callback(log_line)
+
+            def log_message(self, format, *args):
+                """Override to prevent duplicate logging."""
+                # This is called by send_error and other methods
+                # We handle logging in log_request and log_error instead
+                pass
 
         return DynamicRequestHandler

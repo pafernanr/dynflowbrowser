@@ -64,6 +64,10 @@ class BaseDataProvider:
         """
         self.db = db
         self.conf = conf
+        # Detect database type once
+        self.is_postgres = hasattr(db, '_conn') and hasattr(
+            db._conn, 'server_version'
+        )
         self.pulp_plans_exectime = {}
         self.pulp_total_exectime = {}
         self.pulp_total_rel_exectime = {}
@@ -78,19 +82,25 @@ class BaseDataProvider:
         Returns:
             dict: Dictionary mapping task IDs to lists of task rows
         """
+        if self.is_postgres:
+            return self._get_tasks_data_postgres(show_all)
+        else:
+            return self._get_tasks_data_sqlite(show_all)
+
+    def _get_tasks_data_postgres(self, show_all):
+        """Fetch tasks data from PostgreSQL."""
         where = "" if show_all else " AND t.result != 'success'"
 
         # Get parent tasks
         parent_tasks = self.db.query(
-            "SELECT t.parent_task_id, t.id, t.external_id,"
-            + " t.label, t.state, t.result, t.started_at,"
-            + " t.ended_at, t.action, p.state, p.result"
-            + " FROM foreman_tasks_tasks t"
-            + " LEFT JOIN dynflow_execution_plans p"
-            + " ON t.external_id=p.uuid"
-            + " WHERE t.parent_task_id=''"
+            """SELECT t.parent_task_id, t.id, t.external_id,
+                      t.label, t.state, t.result, t.started_at,
+                      t.ended_at, t.action, p.state, p.result
+               FROM foreman_tasks_tasks t
+               LEFT JOIN dynflow_execution_plans p
+                   ON NULLIF(t.external_id, '')::uuid = p.uuid
+               WHERE t.parent_task_id IS NULL"""
             + where
-            + " GROUP BY t.id"
             + " ORDER BY t.started_at DESC"
         )
 
@@ -100,13 +110,53 @@ class BaseDataProvider:
 
         # Get child tasks
         child_tasks = self.db.query(
-            "SELECT t.parent_task_id, t.id, t.external_id,"
-            + " t.label, t.state, t.result, t.started_at,"
-            + " t.ended_at, t.action"
-            + " FROM foreman_tasks_tasks t"
-            + " LEFT JOIN dynflow_execution_plans p"
-            + " ON t.external_id=p.uuid"
-            + " WHERE t.parent_task_id!=''"
+            """SELECT t.parent_task_id, t.id, t.external_id,
+                      t.label, t.state, t.result, t.started_at,
+                      t.ended_at, t.action
+               FROM foreman_tasks_tasks t
+               LEFT JOIN dynflow_execution_plans p
+                   ON NULLIF(t.external_id, '')::uuid = p.uuid
+               WHERE t.parent_task_id IS NOT NULL"""
+            + where
+            + " ORDER BY t.started_at ASC"
+        )
+
+        for t in child_tasks:
+            if t[0] in rowsdict.keys():
+                rowsdict[t[0]].append(t)
+
+        return rowsdict
+
+    def _get_tasks_data_sqlite(self, show_all):
+        """Fetch tasks data from SQLite."""
+        where = "" if show_all else " AND t.result != 'success'"
+
+        # Get parent tasks
+        parent_tasks = self.db.query(
+            """SELECT t.parent_task_id, t.id, t.external_id,
+                      t.label, t.state, t.result, t.started_at,
+                      t.ended_at, t.action, p.state, p.result
+               FROM foreman_tasks_tasks t
+               LEFT JOIN dynflow_execution_plans p
+                   ON t.external_id = p.uuid
+               WHERE t.parent_task_id = ''"""
+            + where
+            + " ORDER BY t.started_at DESC"
+        )
+
+        rowsdict = {}
+        for t in parent_tasks:
+            rowsdict[t[1]] = [t]
+
+        # Get child tasks
+        child_tasks = self.db.query(
+            """SELECT t.parent_task_id, t.id, t.external_id,
+                      t.label, t.state, t.result, t.started_at,
+                      t.ended_at, t.action
+               FROM foreman_tasks_tasks t
+               LEFT JOIN dynflow_execution_plans p
+                   ON t.external_id = p.uuid
+               WHERE t.parent_task_id != ''"""
             + where
             + " ORDER BY t.started_at ASC"
         )
@@ -137,17 +187,13 @@ class BaseDataProvider:
     def get_dynflow_total_exectime(self):
         """Get top Dynflow steps by execution time.
 
+        Delegates to shared StatsQueries with filtering support.
+
         Returns:
             list: Query results with (sum_exec_time, count, action_class)
         """
-        return self.db.query(
-            """SELECT SUM(execution_time), COUNT(s.id), s.action_class
-            FROM dynflow_steps s
-            GROUP BY s.action_class
-            ORDER BY SUM(execution_time) DESC
-            LIMIT 5
-            """
-        )
+        from dynflowbrowser.lib.ui.shared import StatsQueries
+        return StatsQueries.get_dynflow_total_exectime(self.db, self.conf)
 
     def get_pulp_total_exectime_sorted(self):
         """Get top Pulp tasks by execution time.

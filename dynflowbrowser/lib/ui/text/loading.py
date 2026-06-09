@@ -6,6 +6,7 @@ from textual.containers import Vertical
 from textual.screen import Screen
 from textual.widgets import Static
 
+from .theme import COLORS, STYLES
 from .widgets import LogoBanner
 
 
@@ -44,6 +45,21 @@ class LoadingScreen(Screen):
     }
     """
 
+    def __init__(self, message="Loading Dynflow Data...",
+                 show_progress=True, **kwargs):
+        """Initialize loading screen.
+
+        Args:
+            message: Custom loading message to display
+            show_progress: If True, show progress bars; if False, show spinner
+            **kwargs: Additional keyword arguments
+        """
+        super().__init__(**kwargs)
+        self.message = message
+        self.show_progress = show_progress
+        self.spinner_index = 0
+        self.spinner_timer = None
+
     def compose(self) -> ComposeResult:
         """Compose the loading screen."""
         with Center():
@@ -51,28 +67,55 @@ class LoadingScreen(Screen):
                 with Vertical():
                     yield LogoBanner()
                     yield Static(
-                        "Loading Dynflow Data...",
+                        self.message,
                         id="loading-label"
                     )
                     with Vertical(id="progress-container"):
-                        yield Static(
-                            "", classes="progress-line", id="progress-tasks"
-                        )
-                        yield Static(
-                            "", classes="progress-line", id="progress-plans"
-                        )
-                        yield Static(
-                            "", classes="progress-line", id="progress-actions"
-                        )
-                        yield Static(
-                            "", classes="progress-line", id="progress-steps"
-                        )
-                        yield Static(
-                            "", classes="progress-line", id="progress-indexes"
-                        )
-                        yield Static(
-                            "", classes="progress-line", id="progress-status"
-                        )
+                        if self.show_progress:
+                            yield Static(
+                                "", classes="progress-line", id="progress-tasks"
+                            )
+                            yield Static(
+                                "", classes="progress-line", id="progress-plans"
+                            )
+                            yield Static(
+                                "", classes="progress-line",
+                                id="progress-actions"
+                            )
+                            yield Static(
+                                "", classes="progress-line", id="progress-steps"
+                            )
+                            yield Static(
+                                "", classes="progress-line",
+                                id="progress-indexes"
+                            )
+                            yield Static(
+                                "", classes="progress-line",
+                                id="progress-status"
+                            )
+                        else:
+                            # Show spinner for indeterminate progress
+                            yield Static(
+                                "", classes="progress-line", id="spinner"
+                            )
+
+    def on_mount(self) -> None:
+        """Start spinner animation if not showing progress bars."""
+        if not self.show_progress:
+            self.spinner_timer = self.set_interval(0.1, self._update_spinner)
+
+    def _update_spinner(self) -> None:
+        """Update the spinner animation."""
+        try:
+            spinner_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+            widget = self.query_one("#spinner", Static)
+            widget.update(
+                f"[{COLORS['accent']}]{spinner_chars[self.spinner_index]}[/] "
+                "Please wait..."
+            )
+            self.spinner_index = (self.spinner_index + 1) % len(spinner_chars)
+        except Exception:
+            pass
 
     def update_progress(self, dtype, current, total):
         """Update progress for a specific data type.
@@ -92,12 +135,12 @@ class LoadingScreen(Screen):
                 bar = "█" * filled + "░" * (bar_width - filled)
 
                 text = Text()
-                text.append(f"{dtype.capitalize():8s}: ", style="cyan")
+                text.append(f"{dtype.capitalize():8s}: ", style=STYLES["key"])
                 text.append(f"[{bar}] {pct:3d}%")
                 widget.update(text)
             else:
                 text = Text()
-                text.append(f"{dtype.capitalize():8s}: ", style="cyan")
+                text.append(f"{dtype.capitalize():8s}: ", style=STYLES["key"])
                 text.append(f"[{'░' * 30}]   0%")
                 widget.update(text)
         except Exception:

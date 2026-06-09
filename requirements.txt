@@ -1,4 +1,6 @@
 Jinja2
+msgpack
 pandas
+psycopg2-binary>=2.9.0
 pytz
 textual>=0.50.0

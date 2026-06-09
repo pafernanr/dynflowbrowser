@@ -14,14 +14,19 @@ from dynflowbrowser.lib.util import Util
 class HttpdOutput(BaseOutput):
     """HTTP dynamic output - serves content via HTTP server."""
 
-    def __init__(self, conf):
+    def __init__(self, conf, postgres=None):
         """Initialize HTTP dynamic output.
 
         Args:
             conf: Configuration object with args and settings
+            postgres: Optional InputPostgres instance (PostgreSQL mode)
         """
         super().__init__(conf)
-        self.db = OutputSQLite(conf)
+        # Use PostgreSQL if provided, otherwise create SQLite
+        if postgres:
+            self.db = postgres
+        else:
+            self.db = OutputSQLite(conf)
         self.util = Util()
         self.data_provider = BaseDataProvider(self.db, conf)
 
@@ -30,22 +35,33 @@ class HttpdOutput(BaseOutput):
 
         This is the main entry point called from the main loop.
         """
+        import time
+
         # Compute execution time statistics (needed for display)
+        t_start = time.time()
         self.compute_execution_stats()
+        t_stats = time.time()
+        print(f"[DEBUG] compute_execution_stats took: {t_stats - t_start:.2f}s")
 
         # Copy static assets to output directory
         self.copy_static_assets()
+        t_assets = time.time()
+        print(f"[DEBUG] copy_static_assets took: {t_assets - t_stats:.2f}s")
 
         # Get dynflow total execution time stats
         dynflow_stats = self.data_provider.get_dynflow_total_exectime()
+        t_dynflow = time.time()
+        print(f"[DEBUG] get_dynflow_total_exectime took: {t_dynflow - t_assets:.2f}s")
 
         # Start HTTP server with pre-computed statistics
+        # Reuse PostgreSQL connection if available
         server = DynamicHttpServer(
             self.conf,
             self.data_provider.pulp_total_exectime,
             dynflow_stats,
             quiet=False,
-            data_provider=self.data_provider
+            data_provider=self.data_provider,
+            postgres_connection=self.db if self.conf.args.dbserver else None
         )
         server.start()
 
@@ -86,17 +102,63 @@ class HttpdOutput(BaseOutput):
     def compute_execution_stats(self):
         """Compute Pulp and Dynflow execution statistics.
 
-        This populates the data_provider with aggregated statistics
-        that are used when rendering the tasks page.
+        Filtering strategy:
+        - SQLite: Use includedUUID (only those tasks were imported)
+        - PostgreSQL: Use WHERE clause with user filters (live data)
 
         Returns:
             tuple: (pulp_stats, dynflow_stats)
         """
-        # Enable query-only mode for better performance
-        self.db.execute("PRAGMA query_only = ON")
+        # Detect database type
+        is_postgres = self.conf.args.dbserver
 
-        # Query actions with output data containing pulp_tasks
-        if self.conf.dynflowdata['includedUUID']:
+        # Enable query-only mode for better performance (SQLite only)
+        if not is_postgres:
+            self.db.execute("PRAGMA query_only = ON")
+
+        if is_postgres:
+            # PostgreSQL: Build WHERE clause from user filters
+            from dynflowbrowser import DynflowBrowser
+            browser = DynflowBrowser()
+            browser.conf = self.conf
+            where_clause, params = browser.build_filters_sql()
+
+            # Prefix column names with 't.' for foreman_tasks_tasks table
+            where_clause_prefixed = where_clause.replace(
+                'started_at', 't.started_at'
+            ).replace(
+                'ended_at', 't.ended_at'
+            ).replace(
+                'state', 't.state'
+            ).replace(
+                'result', 't.result'
+            ).replace(
+                'label', 't.label'
+            ).replace(
+                'action', 't.action'
+            )
+
+            # Query actions with pulp_tasks using filters
+            sql = f"""
+                SELECT a.execution_plan_uuid, a.output
+                FROM dynflow_actions a
+                JOIN foreman_tasks_tasks t ON a.execution_plan_uuid = t.external_id::uuid
+                WHERE {where_clause_prefixed}
+                AND a.output LIKE '%pulp_tasks%'
+            """
+            rows = self.db.query(sql, params or ())
+
+            # Query steps using filters
+            sql_steps = f"""
+                SELECT s.execution_plan_uuid, s.action_class, s.execution_time
+                FROM dynflow_steps s
+                JOIN foreman_tasks_tasks t ON s.execution_plan_uuid = t.external_id::uuid
+                WHERE {where_clause_prefixed}
+            """
+            steps = self.db.query(sql_steps, params or ())
+
+        elif self.conf.dynflowdata['includedUUID']:
+            # SQLite: Use includedUUID list (static snapshot)
             uuid_placeholders = ','.join(
                 '?' * len(self.conf.dynflowdata['includedUUID'])
             )
@@ -110,39 +172,25 @@ class HttpdOutput(BaseOutput):
                 sql,
                 tuple(self.conf.dynflowdata['includedUUID'])
             )
-        else:
-            sql = (
-                "SELECT execution_plan_uuid, output "
-                + "FROM dynflow_actions WHERE output LIKE '%pulp_tasks%'"
+
+            sql_steps = (
+                "SELECT execution_plan_uuid, action_class, execution_time "
+                + "FROM dynflow_steps "
+                + f"WHERE execution_plan_uuid IN ({uuid_placeholders})"
             )
-            rows = self.db.query(sql)
+            steps = self.db.query(
+                sql_steps,
+                tuple(self.conf.dynflowdata['includedUUID'])
+            )
+        else:
+            # No filtering
+            rows = []
+            steps = []
 
         # Process pulp tasks from actions output
         for row in rows:
             plan_uuid, output = row
             self.sum_pulp_plans_exectime(plan_uuid, output)
-
-        # Query steps for dynflow execution times
-        if self.conf.dynflowdata['includedUUID']:
-            uuid_placeholders = ','.join(
-                '?' * len(self.conf.dynflowdata['includedUUID'])
-            )
-            sql = (
-                "SELECT execution_plan_uuid, action_class, "
-                + "execution_time "
-                + "FROM dynflow_steps "
-                + f"WHERE execution_plan_uuid IN ({uuid_placeholders})"
-            )
-            steps = self.db.query(
-                sql,
-                tuple(self.conf.dynflowdata['includedUUID'])
-            )
-        else:
-            sql = (
-                "SELECT execution_plan_uuid, action_class, execution_time "
-                + "FROM dynflow_steps"
-            )
-            steps = self.db.query(sql)
 
         # Aggregate dynflow execution times
         for step in steps:
@@ -153,8 +201,9 @@ class HttpdOutput(BaseOutput):
                 exec_time
             )
 
-        # Disable query-only mode
-        self.db.execute("PRAGMA query_only = OFF")
+        # Disable query-only mode (SQLite only)
+        if not is_postgres:
+            self.db.execute("PRAGMA query_only = OFF")
 
         # Return the computed statistics
         return (

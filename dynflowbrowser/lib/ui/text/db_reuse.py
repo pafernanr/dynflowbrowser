@@ -12,7 +12,7 @@ from textual.widgets import Button
 from textual.widgets import Footer
 from textual.widgets import Static
 
-from .theme import STYLES
+from .theme import COLORS, STYLES
 from .widgets import LogoBanner
 
 
@@ -205,8 +205,8 @@ class DatabaseReuseScreen(Screen):
         rel_path = os.path.relpath(self.conf.dbfile, self.conf.cwd)
 
         text = Text()
-        text.append("Database Already Exists: ", style="#ec7a08")
-        text.append(rel_path, style="white")
+        text.append("Database Already Exists: ", style=COLORS["warning"])
+        text.append(rel_path, style=STYLES["value"])
 
         db_widget.update(text)
 
@@ -254,7 +254,7 @@ class DatabaseReuseScreen(Screen):
 
         # Build previous filters text
         prev_text = Text()
-        prev_text.append("Previous Filters:\n", style="#3f9c35")
+        prev_text.append("Previous Filters:\n", style=COLORS["success"])
         if previous_filters:
             for f in previous_filters:
                 prev_text.append(f"  • {f}\n")
@@ -266,7 +266,7 @@ class DatabaseReuseScreen(Screen):
 
         # Build current filters text
         curr_text = Text()
-        curr_text.append("New Filters:\n", style="#c9190b")
+        curr_text.append("New Filters:\n", style=COLORS["error"])
         if current_filters:
             for f in current_filters:
                 curr_text.append(f"  • {f}\n")

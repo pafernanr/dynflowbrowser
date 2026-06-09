@@ -111,10 +111,10 @@
                             <button class="btn-inline" data-target="data-{{a[0]}}" title="Show Data">Data</button>
                         </div>
                     </div>
-                    <span class="action-metric">{% if a[15] %}{{ a[15].split(".")[0] }}{% endif %}</span>
-                    <span class="action-metric">{% if a[16] %}{{ a[16].split(".")[0] }}{% endif %}</span>
-                    <span class="action-metric">{% if a[17] %}{{ "{:0,.2f}".format(a[17]) }}{% endif %}</span>
-                    <span class="action-metric">{% if a[18] %}{{ "{:0,.2f}".format(a[18]) }}{% endif %}</span>
+                    <span class="action-metric">{% if a[15] %}{{ (a[15]|string).split(".")[0] }}{% endif %}</span>
+                    <span class="action-metric">{% if a[16] %}{{ (a[16]|string).split(".")[0] }}{% endif %}</span>
+                    <span class="action-metric">{% if a[17] and a[17] is number %}{{ "{:0,.2f}".format(a[17]) }}{% endif %}</span>
+                    <span class="action-metric">{% if a[18] and a[18] is number %}{{ "{:0,.2f}".format(a[18]) }}{% endif %}</span>
                     <span class="status-badge status-{{state}}">{{state}}</span>
                 </div>
 
@@ -146,10 +146,10 @@
                                         <button class="btn-inline" data-target="stepdata-{{a[0]}}-{{s[1]}}" title="Show Data">Data</button>
                                     </div>
                                 </div>
-                                <span class="action-metric">{{ s[4].split(".")[0] if s[4] else '' }}</span>
-                                <span class="action-metric">{{ s[5].split(".")[0] if s[5] else '' }}</span>
-                                <span class="action-metric">{{ "{:0,.2f}".format(s[6]) }}</span>
-                                <span class="action-metric">{{ "{:0,.2f}".format(s[7]) }}</span>
+                                <span class="action-metric">{{ (s[4]|string).split(".")[0] if s[4] else '' }}</span>
+                                <span class="action-metric">{{ (s[5]|string).split(".")[0] if s[5] else '' }}</span>
+                                <span class="action-metric">{{ "{:0,.2f}".format(s[6]) if s[6] is number else '' }}</span>
+                                <span class="action-metric">{{ "{:0,.2f}".format(s[7]) if s[7] is number else '' }}</span>
                                 <span class="status-badge status-{{s[3]}}">{{s[3]}}</span>
                             </div>
 

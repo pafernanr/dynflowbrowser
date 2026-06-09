@@ -38,6 +38,9 @@ class ActionHierarchy:
                     caller_action_id == 0):
                 # Explicit root (no caller)
                 root_actions.append(action)
+            elif caller_action_id == action_id:
+                # Self-referential action - treat as root
+                root_actions.append(action)
             elif caller_action_id not in actions_by_id:
                 # Orphaned reference - caller doesn't exist in this plan
                 root_actions.append(action)

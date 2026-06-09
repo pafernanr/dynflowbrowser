@@ -7,6 +7,7 @@ COLORS = {
     "primary": "#c44336",           # Foreman orange (main brand color)
     "primary_dark": "#a83731",      # Darker orange for hover/active
     "primary_light": "#d9564a",     # Lighter orange
+    "brand_orange": "#EE7D42",      # Brand orange for logo/titles
 
     # Semantic colors
     "success": "#3f9c35",           # Green for success states
@@ -86,6 +87,15 @@ SPACING = {
         "top": "1 0 0 0",      # Top margin only
     },
 }
+
+# CSS snippets for reusable box styles
+CSS_BOX_FULL_WIDTH = """
+    width: 100%;
+    height: auto;
+    border: solid $primary;
+    padding: 0;
+    margin: 0;
+"""
 
 
 def get_color(name: str) -> str:

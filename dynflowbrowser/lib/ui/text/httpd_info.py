@@ -9,6 +9,7 @@ from textual.widgets import Footer
 from textual.widgets import RichLog
 from textual.widgets import Static
 
+from .theme import COLORS, STYLES
 from .widgets import AppHeaderWithSeparator
 
 
@@ -199,7 +200,6 @@ class HttpdInfoScreen(Screen):
 
     def _start_server(self) -> None:
         """Start the HTTP server."""
-        from dynflowbrowser.lib.ui.httpd.output import HttpdOutput
         from dynflowbrowser.lib.ui.httpd.server import DynamicHttpServer
         import threading
         import time
@@ -207,22 +207,25 @@ class HttpdInfoScreen(Screen):
         logs = self.query_one("#server-logs", RichLog)
         logs.write("[bold green]Starting HTTP Server...[/bold green]")
 
-        # Compute stats
-        httpd_output = HttpdOutput(self.conf)
-        pulp_stats, dynflow_stats = httpd_output.compute_execution_stats()
+        # Copy static assets only (no stats computation)
+        from dynflowbrowser.lib.ui.httpd.output import HttpdOutput
+        postgres_conn = self.app.postgres if hasattr(self.app, 'postgres') else None
+        httpd_output = HttpdOutput(self.conf, postgres=postgres_conn)
         httpd_output.copy_static_assets()
 
         # Create server with log callback
+        # Stats will be computed on-demand when pages are requested
         def log_callback(message):
             self.log_message(message)
 
         self.app.httpd_server = DynamicHttpServer(
             self.conf,
-            pulp_stats,
-            dynflow_stats,
+            {},  # Empty pulp_stats - computed on demand
+            [],  # Empty dynflow_stats - computed on demand
             quiet=True,
             log_callback=log_callback,
-            data_provider=httpd_output.data_provider
+            data_provider=None,  # Will create on demand
+            postgres_connection=postgres_conn  # Reuse connection
         )
 
         # Start server in background
@@ -268,7 +271,7 @@ class HttpdInfoScreen(Screen):
                 self.app.httpd_server.stop()
                 self.app.httpd_server = None
             except Exception as e:
-                logs.write(f"[red]Error stopping server: {e}[/red]")
+                logs.write(f"[{COLORS['error']}]Error stopping server: {e}[/]")
 
         self.server_running = False
 
@@ -297,7 +300,7 @@ class HttpdInfoScreen(Screen):
         except Exception:
             pass
 
-        logs.write("[dim]HTTP Server stopped.[/dim]")
+        logs.write(f"[{STYLES['dim']}]HTTP Server stopped.[/]")
 
     def update_server_info(self, server_info):
         """Update server connection information.
@@ -329,7 +332,7 @@ class HttpdInfoScreen(Screen):
             "[bold green]HTTP Server started successfully[/bold green]"
         )
         port = self.server_info.get('port', '8000')
-        logs.write(f"[cyan]Listening on port {port}[/cyan]")
+        logs.write(f"[{COLORS['accent']}]Listening on port {port}[/]")
 
     def log_message(self, message: str) -> None:
         """Add a message to the server logs.
@@ -342,6 +345,6 @@ class HttpdInfoScreen(Screen):
 
         logs = self.query_one("#server-logs", RichLog)
         timestamp = time.strftime("%H:%M:%S")
-        logs.write(f"[dim]{timestamp}[/dim] {message}")
+        logs.write(f"[{STYLES['dim']}]{timestamp}[/] {message}")
         # Auto-scroll to bottom
         logs.scroll_end(animate=False)

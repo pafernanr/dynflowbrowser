@@ -24,14 +24,15 @@ class TextOutput(BaseOutput):
         # Don't open DB yet - wait until user decides to reuse or create
         self.db = None
 
-    def write(self, sqlite=None, input_dynflow=None):
+    def write(self, sqlite=None, postgres=None, input_dynflow=None):
         """Launch interactive Textual TUI application.
 
         This is a blocking call that runs until the user quits the TUI.
 
         Args:
-            sqlite: OutputSQLite instance for data import
-            input_dynflow: InputDynflow instance for reading CSV files
+            sqlite: OutputSQLite instance for data import (SQLite mode)
+            postgres: InputPostgres instance (PostgreSQL mode)
+            input_dynflow: InputDynflow instance for reading CSV files (SQLite mode)
         """
         app = DynflowTUI(
             self.db,
@@ -39,6 +40,7 @@ class TextOutput(BaseOutput):
             show_welcome=True,
             initial_mode="welcome",
             sqlite=sqlite,
+            postgres=postgres,
             input_dynflow=input_dynflow
         )
         app.run()

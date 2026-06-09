@@ -12,7 +12,7 @@ from textual.widgets import Button
 from textual.widgets import Footer
 from textual.widgets import Static
 
-from .theme import STYLES
+from .theme import COLORS, STYLES
 from .widgets import LogoBanner
 
 
@@ -44,6 +44,13 @@ class WelcomeScreen(Screen):
 
     #spacer-1, #spacer-2 {
         height: 1;
+    }
+
+    #postgres-info {
+        width: 100%;
+        text-align: center;
+        margin: 0;
+        color: $text-muted;
     }
 
     #mode-label {
@@ -115,6 +122,7 @@ class WelcomeScreen(Screen):
                 with Vertical():
                     yield LogoBanner()
                     yield Static("", id="spacer-1")
+                    yield Static("", id="postgres-info")
                     yield Static("", id="spacer-2")
                     yield Static(
                         "Choose how to browse",
@@ -168,7 +176,7 @@ class WelcomeScreen(Screen):
             # Widget not found or other error - try to show error
             try:
                 status_widget = self.query_one("#server-status", Static)
-                status_widget.update(f"[red]Error: {e}[/red]")
+                status_widget.update(f"[{COLORS['error']}]Error: {e}[/]")
             except Exception:
                 pass
 
@@ -210,13 +218,13 @@ class WelcomeScreen(Screen):
             if stats:
                 from rich.text import Text
                 text = Text()
-                text.append("Dynflow Data: ", style="cyan")
+                text.append("Dynflow Data: ", style=STYLES["key"])
                 parts = []
                 for dtype in ['tasks', 'plans', 'actions', 'steps']:
                     if dtype in stats:
                         s = stats[dtype]
                         parts.append(f"{s['rows']} {dtype}")
-                text.append(" | ".join(parts), style="white")
+                text.append(" | ".join(parts), style=STYLES["value"])
                 stats_widget.update(text)
         except Exception:
             pass
@@ -255,9 +263,35 @@ class WelcomeScreen(Screen):
 
             if filters:
                 text = Text()
-                text.append("Filters: ", style="cyan")
-                text.append(" | ".join(filters), style="white")
+                text.append("Filters: ", style=STYLES["key"])
+                text.append(" | ".join(filters), style=STYLES["value"])
                 args_widget.update(text)
+        except Exception:
+            # Silently fail
+            pass
+
+    def update_postgres_connection_info(self, conf) -> None:
+        """Update the PostgreSQL connection info display.
+
+        Args:
+            conf: Configuration object with db_params
+        """
+        try:
+            from rich.text import Text
+
+            info_widget = self.query_one("#postgres-info", Static)
+
+            # Get connection details
+            server = conf.db_params.get('server', 'unknown')
+            database = conf.db_params.get('database', 'unknown')
+            username = conf.db_params.get('username', 'unknown')
+
+            # Build info line
+            text = Text()
+            text.append("Connected to PostgreSQL: ", style=STYLES["key"])
+            text.append(f"{username}@{server}/{database}", style=STYLES["value"])
+
+            info_widget.update(text)
         except Exception:
             # Silently fail
             pass

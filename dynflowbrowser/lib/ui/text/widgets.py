@@ -13,7 +13,7 @@ from dynflowbrowser.lib.ui.shared import ActionHierarchy
 from dynflowbrowser.lib.ui.shared import ActionQueries
 from dynflowbrowser.lib.ui.shared import FormatHelpers
 from dynflowbrowser.lib.ui.shared import StatsQueries
-from .theme import STYLES
+from .theme import COLORS, STYLES
 
 
 class AppHeader(Static):
@@ -26,7 +26,7 @@ class AppHeader(Static):
             Text: Styled header text
         """
         text = Text()
-        text.append("DynflowBrowser", style="bold #EE7D42")
+        text.append("DynflowBrowser", style=f"bold {COLORS['brand_orange']}")
         return text
 
 
@@ -110,10 +110,10 @@ class LogoBanner(Static):
         # Create version text aligned to the right of the ASCII art
         # The ASCII art width is about 85 chars, version goes at the end
         version_line = " " * 73 + self.version
-        version_text = Text(version_line, style="dim #EE7D42")
+        version_text = Text(version_line, style=f"dim {COLORS['brand_orange']}")
 
         # Create text with ASCII art
-        art_text = Text(self.ASCII_ART, style="bold #EE7D42")
+        art_text = Text(self.ASCII_ART, style=f"bold {COLORS['brand_orange']}")
 
         # Center both
         centered_version = Align.center(version_text)
@@ -162,9 +162,9 @@ class HeaderSeparator(Static):
             remaining = 0
 
         text = Text()
-        text.append("─" * remaining, style="bold #EE7D42")
-        text.append(version_text, style="dim #EE7D42")  # Lighter color
-        text.append(end_dashes, style="bold #EE7D42")
+        text.append("─" * remaining, style=f"bold {COLORS['brand_orange']}")
+        text.append(version_text, style=f"dim {COLORS['brand_orange']}")  # Lighter color
+        text.append(end_dashes, style=f"bold {COLORS['brand_orange']}")
         return text
 
 
@@ -202,14 +202,14 @@ class HostDetailsHeader(Static):
 
         # Split into two lines
         line1 = (
-            f"[cyan]Host:[/] {hostname} | "
-            f"[cyan]Ver:[/] {satversion} | "
-            f"[cyan]TZ:[/] {timezone}"
+            f"[{COLORS['accent']}]Host:[/] {hostname} | "
+            f"[{COLORS['accent']}]Ver:[/] {satversion} | "
+            f"[{COLORS['accent']}]TZ:[/] {timezone}"
         )
         line2 = (
-            f"[cyan]Tuning:[/] {tuning} | "
-            f"[cyan]CPU:[/] {cpu} | "
-            f"[cyan]RAM:[/] {ram_compact}"
+            f"[{COLORS['accent']}]Tuning:[/] {tuning} | "
+            f"[{COLORS['accent']}]CPU:[/] {cpu} | "
+            f"[{COLORS['accent']}]RAM:[/] {ram_compact}"
         )
         return f"{line1}\n{line2}"
 
@@ -240,12 +240,14 @@ class StatsPanel(Static):
 
         util = Util('W')
 
-        # Get top Dynflow steps using shared query
-        dynflow_stats = StatsQueries.get_dynflow_total_exectime(self.db)
+        # Get top Dynflow steps using shared query (respects filters)
+        dynflow_stats = StatsQueries.get_dynflow_total_exectime(
+            self.db, self.conf
+        )
 
         # Create Rich table for Dynflow
         dynflow_table = Table(
-            title="[bold]Top Dynflow[/]",
+            title=f"[{STYLES['bold']}]Top Dynflow[/]",
             show_header=True,
             header_style=STYLES["section_title"],
             expand=False,
@@ -288,7 +290,7 @@ class StatsPanel(Static):
 
         # Create Pulp table
         pulp_table = Table(
-            title="[bold]Top Pulp[/]",
+            title=f"[{STYLES['bold']}]Top Pulp[/]",
             show_header=True,
             header_style=STYLES["section_title"],
             expand=False,
@@ -334,6 +336,10 @@ class TasksDataTable(DataTable):
         super().__init__(**kwargs)
         self.db = db
         self.conf = conf
+        # Detect database type once
+        self.is_postgres = hasattr(db, '_conn') and hasattr(
+            db._conn, 'server_version'
+        )
         self.cursor_type = "row"
         self.zebra_stripes = True
         # Store mapping of row keys to plan UUIDs for navigation
@@ -374,38 +380,13 @@ class TasksDataTable(DataTable):
 
     def _load_tasks(self) -> None:
         """Load tasks from database."""
-        # Fetch tasks data
-        where = "" if self.conf.args.showall else " AND t.result != 'success'"
+        if self.is_postgres:
+            self._load_tasks_postgres()
+        else:
+            self._load_tasks_sqlite()
 
-        # Fetch parent tasks
-        parent_query = (
-            "SELECT t.parent_task_id, t.id, t.external_id,"
-            " t.label, t.state, t.result, t.started_at,"
-            " t.ended_at, t.action, p.state, p.result"
-            " FROM foreman_tasks_tasks t"
-            " LEFT JOIN dynflow_execution_plans p ON t.external_id=p.uuid"
-            " WHERE t.parent_task_id=''"
-            + where
-            + " GROUP BY t.id"
-            " ORDER BY t.started_at DESC"
-        )
-        self.parent_tasks = self.db.query(parent_query)
-
-        # Fetch child tasks
-        child_query = (
-            "SELECT t.parent_task_id, t.id, t.external_id,"
-            " t.label, t.state, t.result, t.started_at,"
-            " t.ended_at, t.action"
-            " FROM foreman_tasks_tasks t"
-            " LEFT JOIN dynflow_execution_plans p ON t.external_id=p.uuid"
-            " WHERE t.parent_task_id!=''"
-            + where
-            + " ORDER BY t.started_at ASC"
-        )
-        child_tasks_raw = self.db.query(child_query)
-
-        # Group children by parent task ID (convert to string for consistency)
-        for child in child_tasks_raw:
+        # Group children by parent task ID (common for both)
+        for child in self.child_tasks_raw:
             parent_id = str(child[0]) if child[0] else ""
             if parent_id and parent_id not in self.children_by_parent:
                 self.children_by_parent[parent_id] = []
@@ -420,6 +401,66 @@ class TasksDataTable(DataTable):
 
         # Render the table
         self._render_table()
+
+    def _load_tasks_postgres(self) -> None:
+        """Load tasks from PostgreSQL database."""
+        where = "" if self.conf.args.showall else " AND t.result != 'success'"
+
+        # Fetch parent tasks
+        parent_query = """
+            SELECT t.parent_task_id, t.id, t.external_id,
+                   t.label, t.state, t.result, t.started_at,
+                   t.ended_at, t.action, p.state, p.result
+            FROM foreman_tasks_tasks t
+            LEFT JOIN dynflow_execution_plans p
+                ON NULLIF(t.external_id, '')::uuid = p.uuid
+            WHERE t.parent_task_id IS NULL
+        """ + where + " ORDER BY t.started_at DESC"
+
+        self.parent_tasks = self.db.query(parent_query)
+
+        # Fetch child tasks
+        child_query = """
+            SELECT t.parent_task_id, t.id, t.external_id,
+                   t.label, t.state, t.result, t.started_at,
+                   t.ended_at, t.action
+            FROM foreman_tasks_tasks t
+            LEFT JOIN dynflow_execution_plans p
+                ON NULLIF(t.external_id, '')::uuid = p.uuid
+            WHERE t.parent_task_id IS NOT NULL
+        """ + where + " ORDER BY t.started_at ASC"
+
+        self.child_tasks_raw = self.db.query(child_query)
+
+    def _load_tasks_sqlite(self) -> None:
+        """Load tasks from SQLite database."""
+        where = "" if self.conf.args.showall else " AND t.result != 'success'"
+
+        # Fetch parent tasks
+        parent_query = """
+            SELECT t.parent_task_id, t.id, t.external_id,
+                   t.label, t.state, t.result, t.started_at,
+                   t.ended_at, t.action, p.state, p.result
+            FROM foreman_tasks_tasks t
+            LEFT JOIN dynflow_execution_plans p
+                ON t.external_id = p.uuid
+            WHERE t.parent_task_id = ''
+        """ + where + " ORDER BY t.started_at DESC"
+
+        self.parent_tasks = self.db.query(parent_query)
+
+        # Fetch child tasks
+        child_query = """
+            SELECT t.parent_task_id, t.id, t.external_id,
+                   t.label, t.state, t.result, t.started_at,
+                   t.ended_at, t.action
+            FROM foreman_tasks_tasks t
+            LEFT JOIN dynflow_execution_plans p
+                ON t.external_id = p.uuid
+            WHERE t.parent_task_id != ''
+        """ + where + " ORDER BY t.started_at ASC"
+
+        self.child_tasks_raw = self.db.query(child_query)
 
     def _render_table(self) -> None:
         """Render all tasks based on expanded state."""
@@ -711,6 +752,10 @@ class ActionDetailsHeader(Static):
         super().__init__(**kwargs)
         self.db = db
         self.plan_uuid = plan_uuid
+        # Detect database type once
+        self.is_postgres = hasattr(db, '_conn') and hasattr(
+            db._conn, 'server_version'
+        )
 
     def on_mount(self) -> None:
         """Load and display action details when mounted."""
@@ -718,14 +763,10 @@ class ActionDetailsHeader(Static):
         from dynflowbrowser.lib.ui.shared import ActionQueries
 
         # Get task/plan info
-        task_query = """
-            SELECT p.label, t.action, t.id
-            FROM dynflow_execution_plans p
-            LEFT JOIN foreman_tasks_tasks t ON p.uuid = t.external_id
-            WHERE p.uuid = ?
-            LIMIT 1
-        """
-        task_result = self.db.query(task_query, (self.plan_uuid,))
+        if self.is_postgres:
+            task_result = self._get_task_info_postgres()
+        else:
+            task_result = self._get_task_info_sqlite()
 
         if task_result and len(task_result) > 0:
             row = task_result[0]
@@ -803,6 +844,30 @@ class ActionDetailsHeader(Static):
 
         self.update(header)
 
+    def _get_task_info_postgres(self):
+        """Get task/plan info from PostgreSQL."""
+        task_query = """
+            SELECT p.label, t.action, t.id
+            FROM dynflow_execution_plans p
+            LEFT JOIN foreman_tasks_tasks t
+                ON p.uuid = t.external_id::uuid
+            WHERE p.uuid = %s
+            LIMIT 1
+        """
+        return self.db.query(task_query, (self.plan_uuid,))
+
+    def _get_task_info_sqlite(self):
+        """Get task/plan info from SQLite."""
+        task_query = """
+            SELECT p.label, t.action, t.id
+            FROM dynflow_execution_plans p
+            LEFT JOIN foreman_tasks_tasks t
+                ON p.uuid = t.external_id
+            WHERE p.uuid = ?
+            LIMIT 1
+        """
+        return self.db.query(task_query, (self.plan_uuid,))
+
 
 class ActionStatsPanel(Static):
     """Panel showing Top Dynflow and Pulp stats for a specific plan."""
@@ -840,7 +905,7 @@ class ActionStatsPanel(Static):
 
         # Create Rich table for Dynflow
         dynflow_table = Table(
-            title="[bold]Top Dynflow[/]",
+            title=f"[{STYLES['bold']}]Top Dynflow[/]",
             show_header=True,
             header_style=STYLES["section_title"],
             expand=False,
@@ -886,7 +951,7 @@ class ActionStatsPanel(Static):
 
         # Create Pulp table
         pulp_table = Table(
-            title="[bold]Top Pulp[/]",
+            title=f"[{STYLES['bold']}]Top Pulp[/]",
             show_header=True,
             header_style=STYLES["section_title"],
             expand=False,
@@ -998,9 +1063,18 @@ class ActionsTreeTable(DataTable):
             self.plan_uuid
         )
 
+        # Deduplicate actions by id (just in case)
+        seen_ids = set()
+        actions_deduped = []
+        for action in actions_raw:
+            action_id = action[0]
+            if action_id not in seen_ids:
+                seen_ids.add(action_id)
+                actions_deduped.append(action)
+
         # Build action hierarchy using shared code
         self.root_actions, self.child_actions, self.actions_by_id = (
-            ActionHierarchy.build_hierarchy(actions_raw)
+            ActionHierarchy.build_hierarchy(actions_deduped)
         )
 
         # Query steps for actions using shared query
@@ -1251,15 +1325,15 @@ class ActionsTreeTable(DataTable):
         step_text = Text()
         step_text.append(indent)
         step_text.append("  └─ ", style=STYLES["dim"])
-        step_text.append(f"{run_step_id}.{step_id}", style="dim cyan")
+        step_text.append(f"{run_step_id}.{step_id}", style=STYLES["dim"])
 
         # Add alert indicator if step has error content
         error = step[13] if len(step) > 13 else ""
         if error:
-            step_text.append("!", style="bold red")
+            step_text.append("!", style=STYLES["error_text"])
             step_text.append(" ")
         else:
-            step_text.append(": ", style="dim cyan")
+            step_text.append(": ", style=STYLES["dim"])
 
         step_text.append(action_class)
 
@@ -1435,14 +1509,16 @@ class ActionsTreeTable(DataTable):
 
         # Format the content
         if not content or content == '{}' or content == '':
-            formatted_content = "[dim]No data[/dim]"
+            formatted_content = f"[{STYLES['dim']}]No data[/]"
         else:
             # Try to pretty-print JSON
             import json
             try:
                 parsed = json.loads(content)
                 formatted_content = json.dumps(parsed, indent=2)
-            except:
+            except Exception as e:
+                with open('/tmp/detail_debug.log', 'a') as f:
+                    f.write(f"JSON parse failed: {e}\n")
                 formatted_content = str(content)
 
         # Show in modal
@@ -1538,7 +1614,7 @@ class DetailPanel(VerticalScroll):
         except (json.JSONDecodeError, TypeError):
             # Display as plain text if not valid JSON
             self.remove_children()
-            self.mount(Static(f"[yellow]{json_data}[/yellow]"))
+            self.mount(Static(f"[{COLORS['highlight']}]{json_data}[/]"))
 
     def display_text(self, text: str, title: str = "Details") -> None:
         """Display plain text.
@@ -1555,4 +1631,4 @@ class DetailPanel(VerticalScroll):
         """Clear the detail panel."""
         self.border_title = "Details"
         self.remove_children()
-        self.mount(Static("[dim]Select an item to view details[/dim]"))
+        self.mount(Static(f"[{STYLES['dim']}]Select an item to view details[/]"))

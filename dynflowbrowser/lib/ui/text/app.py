@@ -11,7 +11,8 @@ from textual.widgets import Footer
 from textual.widgets import Static
 
 from .httpd_info import HttpdInfoScreen
-from .theme import STYLES
+from .loading import LoadingScreen
+from .theme import COLORS, STYLES
 from .welcome import WelcomeScreen
 from .widgets import AppHeader
 from .widgets import HeaderSeparator
@@ -351,12 +352,30 @@ class HttpdAccessModal(ModalScreen):
 
     def compose(self) -> ComposeResult:
         """Create modal widgets."""
+        from rich.text import Text
         from textual.containers import Container
         from textual.containers import VerticalScroll
 
-        with Container(id="httpd_modal_container"):
-            yield Static("HTTP Server Access", id="httpd_modal_title")
-            yield VerticalScroll(id="httpd_modal_content")
+        with Container(id="httpd_modal_container", classes="modal-container"):
+            # Create title with X on the same line (right-aligned)
+            title_text = Text()
+            title_len = len("HTTP Server Access")
+            # Modal width 82, minus 2 for thick borders, minus 2 for padding
+            modal_width = 82 - 2 - 2
+            padding = modal_width - title_len - 3 - 1  # -3 for "[X]", -1 for leading space
+            if padding < 1:
+                padding = 1
+
+            title_text.append(" ")  # Leading space
+            title_text.append("HTTP Server Access", style=f"bold {COLORS['brand_orange']}")
+            title_text.append(" " * padding)
+            title_text.append("[X]", style=f"bold {COLORS['brand_orange']}")
+
+            title_widget = Static(title_text, id="httpd_modal_title", classes="modal-title")
+            title_widget.can_focus = True
+            yield title_widget
+
+            yield VerticalScroll(id="httpd_modal_content", classes="modal-content")
 
     def on_mount(self) -> None:
         """Setup initial content when modal is mounted."""
@@ -400,7 +419,7 @@ class HttpdAccessModal(ModalScreen):
         start_btn = Button("Start Server", variant="success", id="start-btn")
         cancel_btn = Button("Cancel", variant="warning", id="cancel-btn")
 
-        button_container = Horizontal(id="httpd_prompt_buttons")
+        button_container = Horizontal(id="httpd_prompt_buttons", classes="button-group")
         button_container._add_children(start_btn, cancel_btn)
 
         container.mount(Center(button_container))
@@ -474,6 +493,18 @@ class HttpdAccessModal(ModalScreen):
         """Close the modal."""
         self.app.pop_screen()
 
+    def on_click(self, event) -> None:
+        """Handle clicks on title close button.
+
+        Args:
+            event: Click event
+        """
+        # Check if click was on title (which contains [X])
+        if event.widget.id == "httpd_modal_title":
+            # Click on right side area to close
+            if event.x >= 25:
+                self.action_dismiss()
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button press."""
         if event.button.id == "start-btn":
@@ -530,22 +561,24 @@ class DetailMenuModal(ModalScreen):
         """Create modal widgets."""
         from rich.text import Text
         from textual.containers import Container
-        with Container(id="menu_container"):
+        with Container(id="menu_container", classes="modal-container"):
             # Create title with X on the same line (right-aligned)
             title_text = Text()
             # Calculate padding to push X to the right
             # Modal content width is less than container due to borders/padding
             title_len = len(self.title_text)
-            # Use 36 instead of 40 to account for borders
-            padding = 36 - title_len - 3  # 3 for " [X]"
+            # Modal width 40, minus 2 for thick borders, minus 2 for padding
+            modal_width = 40 - 2 - 2
+            padding = modal_width - title_len - 3 - 1  # -3 for "[X]", -1 for leading space
             if padding < 1:
                 padding = 1
 
-            title_text.append(self.title_text, style="bold #EE7D42")
+            title_text.append(" ")  # Leading space
+            title_text.append(self.title_text, style=f"bold {COLORS['brand_orange']}")
             title_text.append(" " * padding)
-            title_text.append("[X]", style="bold #EE7D42")
+            title_text.append("[X]", style=f"bold {COLORS['brand_orange']}")
 
-            title_widget = Static(title_text, id="menu_title")
+            title_widget = Static(title_text, id="menu_title", classes="modal-title")
             title_widget.can_focus = True
             yield title_widget
 
@@ -596,7 +629,7 @@ class DetailMenuModal(ModalScreen):
             menu_text = Text()
             menu_text.append(f"{idx + 1}. {label}")
             if has_alert:
-                menu_text.append(" !", style="bold red")
+                menu_text.append(" !", style=STYLES["error_text"])
 
             item = self.query_one(f"#menu_item_{idx}")
             item.update(menu_text)
@@ -651,11 +684,30 @@ class QuitModal(ModalScreen):
 
     def compose(self) -> ComposeResult:
         """Compose the quit confirmation modal."""
+        from rich.text import Text
         from textual.containers import Container
-        with Container(id="quit_container"):
-            yield Static("Quit DynflowBrowser?", id="quit_title")
-            with Container(id="quit_content"):
-                with Horizontal(id="quit_buttons"):
+
+        with Container(id="quit_container", classes="modal-container"):
+            # Create title with X on the same line (right-aligned)
+            title_text = Text()
+            title_len = len("Quit DynflowBrowser?")
+            # Modal width 50, minus 2 for thick borders, minus 2 for title padding (0 0 0 1 left + right margin)
+            modal_width = 50 - 2 - 2
+            padding = modal_width - title_len - 3 - 1  # -3 for "[X]", -1 for leading space
+            if padding < 1:
+                padding = 1
+
+            title_text.append(" ")  # Leading space
+            title_text.append("Quit DynflowBrowser?", style=f"bold {COLORS['brand_orange']}")
+            title_text.append(" " * padding)
+            title_text.append("[X]", style=f"bold {COLORS['brand_orange']}")
+
+            title_widget = Static(title_text, id="quit_title", classes="modal-title")
+            title_widget.can_focus = True
+            yield title_widget
+
+            with Container(id="quit_content", classes="modal-content"):
+                with Horizontal(id="quit_buttons", classes="button-group"):
                     yield Button("Yes", id="quit_yes", variant="success")
                     yield Button("No", id="quit_no", variant="warning")
 
@@ -673,6 +725,18 @@ class QuitModal(ModalScreen):
     def action_cancel(self) -> None:
         """Cancel quit."""
         self.dismiss(False)
+
+    def on_click(self, event) -> None:
+        """Handle clicks on title close button.
+
+        Args:
+            event: Click event
+        """
+        # Check if click was on title (which contains [X])
+        if event.widget.id == "quit_title":
+            # Click on right side area to close (cancel quit)
+            if event.x >= 25:
+                self.action_cancel()
 
     def action_select(self) -> None:
         """Select focused button."""
@@ -709,23 +773,53 @@ class AboutModal(ModalScreen):
 
     def compose(self) -> ComposeResult:
         """Create modal widgets."""
+        from rich.text import Text
         from textual.containers import Container
-        with Container(id="about_container"):
-            yield Static("About DynflowBrowser", id="about_title")
+
+        with Container(id="about_container", classes="modal-container"):
+            # Create title with X on the same line (right-aligned)
+            title_text = Text()
+            title_len = len("About DynflowBrowser")
+            # Modal width 70, minus 2 for thick borders, minus 2 for padding
+            modal_width = 70 - 2 - 2
+            padding = modal_width - title_len - 3 - 1  # -3 for "[X]", -1 for leading space
+            if padding < 1:
+                padding = 1
+
+            title_text.append(" ")  # Leading space
+            title_text.append("About DynflowBrowser", style=f"bold {COLORS['brand_orange']}")
+            title_text.append(" " * padding)
+            title_text.append("[X]", style=f"bold {COLORS['brand_orange']}")
+
+            title_widget = Static(title_text, id="about_title", classes="modal-title")
+            title_widget.can_focus = True
+            yield title_widget
 
             content = (
-                f"[bold cyan]DynflowBrowser[/bold cyan] "
-                f"[dim]{self.version}[/dim]\n\n"
-                "[dim]Browse and analyze Dynflow execution data from "
-                "Red Hat Satellite sosreports.[/dim]\n\n"
-                "[cyan]GitHub:[/cyan] "
+                f"[bold {COLORS['accent']}]DynflowBrowser[/] "
+                f"[{STYLES['dim']}]{self.version}[/]\n\n"
+                f"[{STYLES['dim']}]Browse and analyze Dynflow execution data from "
+                f"Red Hat Satellite sosreports.[/]\n\n"
+                f"[{COLORS['accent']}]GitHub:[/] "
                 "https://github.com/pafernanr/dynflowbrowser\n"
             )
-            yield Static(content, id="about_content")
+            yield Static(content, id="about_content", classes="modal-content")
 
     def action_dismiss(self) -> None:
         """Close the modal."""
         self.app.pop_screen()
+
+    def on_click(self, event) -> None:
+        """Handle clicks on title close button.
+
+        Args:
+            event: Click event
+        """
+        # Check if click was on title (which contains [X])
+        if event.widget.id == "about_title":
+            # Click on right side area to close
+            if event.x >= 25:
+                self.action_dismiss()
 
 
 class DetailModal(ModalScreen):
@@ -750,19 +844,398 @@ class DetailModal(ModalScreen):
 
     def compose(self) -> ComposeResult:
         """Create modal widgets."""
-        with VerticalScroll(id="detail_container"):
-            yield Static(self.title_text, id="detail_title")
-            yield Static(self.content_text, id="detail_content")
+        from rich.text import Text
+
+        with VerticalScroll(id="detail_container", classes="modal-container"):
+            # Title bar with close button - use Horizontal to properly align
+            from textual.containers import Horizontal
+            from rich.text import Text
+
+            with Horizontal(id="detail_title_bar", classes="content-title"):
+                title_text = Text()
+                title_text.append(" ")  # Leading space
+                title_text.append(self.title_text, style=f"bold {COLORS['brand_orange']}")
+
+                close_text = Text()
+                close_text.append("[X]", style=f"bold {COLORS['brand_orange']}")
+
+                title_widget = Static(title_text, id="detail_title")
+                title_widget.can_focus = False
+                yield title_widget
+
+                close_widget = Static(close_text, id="detail_close")
+                close_widget.can_focus = True
+                yield close_widget
+
+            yield Static(self.content_text, id="detail_content", classes="modal-content")
 
     def action_dismiss(self) -> None:
         """Close the modal."""
-        self.app.pop_screen()
+        self.dismiss()
+
+    def on_click(self, event) -> None:
+        """Handle clicks on title close button.
+
+        Args:
+            event: Click event
+        """
+        # Check if click was on close button
+        if event.widget.id == "detail_close":
+            self.action_dismiss()
+
+
+class PostgresConnectionScreen(Screen):
+    """PostgreSQL connection parameter input screen."""
+
+    BINDINGS = [
+        Binding("q", "request_quit", "Quit", priority=True),
+        Binding("escape", "cancel", "Cancel", show=True),
+        Binding("enter", "connect", "Connect", show=True),
+    ]
+
+    CSS = """
+    PostgresConnectionScreen {
+        background: $surface;
+    }
+
+    #main-content {
+        align: center middle;
+        height: 1fr;
+    }
+
+    LogoBanner {
+        width: 100%;
+        margin: 0;
+    }
+
+    #postgres-title {
+        width: 100%;
+        margin: 1 0;
+    }
+
+    #postgres-form {
+        width: 100%;
+        height: auto;
+        border: solid $primary;
+        padding: 0;
+        margin: 0;
+    }
+
+    .postgres_row {
+        width: 100%;
+        height: auto;
+        align: left middle;
+        margin-bottom: 1;
+    }
+
+    .postgres_label {
+        width: 13;
+    }
+
+    .postgres_label_small {
+        width: 11;
+    }
+
+    .postgres_field {
+        width: 1fr;
+        margin-right: 2;
+    }
+
+    .postgres_input_small {
+        width: 10;
+    }
+
+    #postgres_task_days {
+        width: 10;
+    }
+
+    #postgres-buttons {
+        margin-top: 1;
+    }
+
+    #postgres-buttons Button {
+        width: 20;
+    }
+    """
+
+    def __init__(self, conf, **kwargs):
+        """Initialize PostgreSQL connection screen.
+
+        Args:
+            conf: Configuration object
+            **kwargs: Additional keyword arguments
+        """
+        super().__init__(**kwargs)
+        self.conf = conf
+
+    def compose(self) -> ComposeResult:
+        """Create screen widgets."""
+        from textual.containers import Center
+        from textual.containers import Horizontal
+        from textual.containers import Middle
+        from textual.containers import Vertical
+        from textual.widgets import Button
+        from textual.widgets import Footer
+        from textual.widgets import Input
+        from textual.widgets import Label
+        from .widgets import LogoBanner
+
+        with Middle(id="main-content"):
+            with Vertical():
+                yield LogoBanner()
+
+                yield Static(
+                    "PostgreSQL Direct Connection",
+                    id="postgres-title",
+                    classes="screen-title"
+                )
+
+                with Center():
+                    with Vertical(id="postgres-form", classes="form-container"):
+                        # Row 1: Server:port (1,1) and Database (1,2)
+                        with Horizontal(classes="postgres_row"):
+                            yield Label("Server:port", classes="postgres_label form-label")
+                            yield Input(
+                                value=self.conf.db_params.get('server', 'localhost:5432'),
+                                placeholder="localhost:5432",
+                                id="postgres_server",
+                                classes="postgres_field"
+                            )
+                            yield Label("Database", classes="postgres_label form-label")
+                            yield Input(
+                                value=self.conf.db_params.get('database', 'foreman'),
+                                placeholder="foreman",
+                                id="postgres_database",
+                                classes="postgres_field"
+                            )
+
+                        # Row 2: Username (2,1) and Password (2,2)
+                        with Horizontal(classes="postgres_row"):
+                            yield Label("Username", classes="postgres_label form-label")
+                            yield Input(
+                                value=self.conf.db_params.get('username', 'foreman'),
+                                placeholder="foreman",
+                                id="postgres_username",
+                                classes="postgres_field"
+                            )
+                            yield Label("Password", classes="postgres_label form-label")
+                            yield Input(
+                                password=True,
+                                placeholder="Enter password",
+                                id="postgres_password",
+                                classes="postgres_field"
+                            )
+
+                        # Row 3: Task Days (3,1)
+                        with Horizontal(classes="postgres_row"):
+                            yield Label("Task Days", classes="postgres_label form-label")
+                            yield Input(
+                                value=str(self.conf.args.task_days or 14),
+                                placeholder="14",
+                                id="postgres_task_days",
+                                classes="postgres_input_small"
+                            )
+
+                    # Buttons - outside the form box
+                    with Horizontal(id="postgres-buttons", classes="button-group"):
+                        yield Button(
+                            "Connect",
+                            variant="primary",
+                            id="btn_connect"
+                        )
+                        yield Button(
+                            "Cancel",
+                            variant="error",
+                            id="btn_cancel"
+                        )
+
+        yield Footer()
+
+    async def on_button_pressed(self, event) -> None:
+        """Handle button press - async to await connect action."""
+        if event.button.id == "btn_connect":
+            await self.action_connect()
+        else:
+            self.action_cancel()
+
+    async def on_input_submitted(self, event) -> None:
+        """Handle ENTER key in any input field - trigger connect."""
+        await self.action_connect()
+
+    async def action_connect(self) -> None:
+        """Handle connect action - async to await worker result."""
+        from textual.widgets import Input
+
+        # Get values from inputs
+        self.conf.db_params['server'] = self.query_one(
+            "#postgres_server", Input
+        ).value
+        self.conf.db_params['database'] = self.query_one(
+            "#postgres_database", Input
+        ).value
+        self.conf.db_params['username'] = self.query_one(
+            "#postgres_username", Input
+        ).value
+        self.conf.db_params['password'] = self.query_one(
+            "#postgres_password", Input
+        ).value
+
+        # Update task_days
+        try:
+            task_days_str = self.query_one(
+                "#postgres_task_days", Input
+            ).value
+            self.conf.args.task_days = int(task_days_str)
+        except ValueError:
+            pass
+
+        # Show connecting screen with spinner (no progress bars)
+        from rich.text import Text
+
+        server = self.conf.db_params.get('server', 'localhost:5432')
+        database = self.conf.db_params.get('database', 'foreman')
+        username = self.conf.db_params.get('username', 'foreman')
+
+        # Build message using theme colors (matching Welcome screen)
+        message = Text()
+        message.append("Connecting to: ", style=STYLES["key"])
+        message.append(f"{username}@{server}/{database}", style=STYLES["value"])
+
+        self.app.push_screen(
+            LoadingScreen(
+                message,
+                show_progress=False
+            )
+        )
+
+        # Run connection in worker thread and await result
+        worker = self.app.run_worker(
+            self.app._connect_postgres_worker,
+            thread=True,
+            exit_on_error=False
+        )
+
+        # Await the worker result
+        result = await worker.wait()
+        success, data = result
+
+        # Handle result on main thread
+        if success:
+            self.app._setup_welcome_after_postgres(data)
+        else:
+            self.app._show_postgres_error(data)
+
+    def action_cancel(self) -> None:
+        """Handle cancel action - show quit confirmation."""
+        self.app.action_request_quit()
+
+    def action_request_quit(self) -> None:
+        """Handle quit request."""
+        self.app.action_request_quit()
 
 
 class DynflowTUI(App):
     """Interactive Textual TUI for browsing Dynflow tasks and actions."""
 
     CSS = """
+    /* ============================================
+       GLOBAL REUSABLE CLASSES
+       ============================================ */
+
+    /* Modal/Dialog title bar - orange brand color */
+    .modal-title {
+        background: $boost;
+        color: #EE7D42;
+        padding: 0 0 0 1;
+        text-style: bold;
+    }
+
+    /* Screen/Section title - cyan for emphasis */
+    .screen-title {
+        color: cyan;
+        text-style: bold;
+        text-align: center;
+    }
+
+    /* Content title - uses brand orange like modal titles */
+    .content-title {
+        background: $boost;
+        color: #EE7D42;
+        padding: 0 0 0 1;
+        text-style: bold;
+    }
+
+    /* Modal container - standard modal wrapper */
+    .modal-container {
+        background: $surface;
+        border: thick $primary;
+        padding: 0;
+    }
+
+    /* Form container - for input forms */
+    .form-container {
+        border: solid $primary;
+        padding: 0 1;
+    }
+
+    /* Form labels - yellow for consistency with httpd */
+    .form-label {
+        color: yellow;
+        text-align: right;
+        padding-right: 1;
+        height: 1;
+    }
+
+    /* Form inputs with lighter background */
+    .form-container Input {
+        height: 1;
+        border: none;
+        background: $boost;
+        padding: 0 1;
+    }
+
+    .form-container Input > .input--placeholder {
+        color: $text-muted;
+    }
+
+    .form-container Input:focus {
+        border: none;
+        background: $panel;
+    }
+
+    .form-container Label {
+        height: 1;
+        content-align: right middle;
+    }
+
+    /* Button group container - centered buttons */
+    .button-group {
+        width: 100%;
+        height: auto;
+        align: center middle;
+    }
+
+    /* Standard button spacing */
+    .button-group Button {
+        margin: 0 1;
+    }
+
+    /* Modal/Dialog content area */
+    .modal-content {
+        padding: 1;
+        height: auto;
+    }
+
+    /* Panel content with boost background */
+    .panel-content {
+        background: $boost;
+        padding: 0 1;
+    }
+
+    /* ============================================
+       SPECIFIC COMPONENT STYLES
+       ============================================ */
+
     AppHeader {
         height: 1;
         dock: top;
@@ -835,32 +1308,6 @@ class DynflowTUI(App):
     #quit_container {
         width: 50;
         height: auto;
-        background: $surface;
-        border: thick $primary;
-        padding: 0;
-    }
-
-    #quit_title {
-        background: $boost;
-        color: #EE7D42;
-        padding: 1;
-        text-align: center;
-        text-style: bold;
-    }
-
-    #quit_content {
-        padding: 1;
-        height: auto;
-    }
-
-    #quit_buttons {
-        width: 100%;
-        height: auto;
-        align: center middle;
-    }
-
-    #quit_buttons Button {
-        margin: 0 1;
     }
 
     AboutModal {
@@ -870,21 +1317,10 @@ class DynflowTUI(App):
     #about_container {
         width: 70;
         height: auto;
-        background: $surface;
-        border: thick $primary;
-        padding: 0;
-    }
-
-    #about_title {
-        background: $boost;
-        color: #EE7D42;
-        padding: 0;
-        text-style: bold;
     }
 
     #about_content {
         padding: 0;
-        height: auto;
     }
 
     HttpdAccessModal {
@@ -894,21 +1330,9 @@ class DynflowTUI(App):
     #httpd_modal_container {
         width: 82;
         height: auto;
-        background: $surface;
-        border: thick $primary;
-        padding: 0;
-    }
-
-    #httpd_modal_title {
-        background: $boost;
-        color: #EE7D42;
-        padding: 0;
-        text-style: bold;
     }
 
     #httpd_modal_content {
-        padding: 1;
-        height: auto;
         max-height: 30;
     }
 
@@ -918,16 +1342,9 @@ class DynflowTUI(App):
         margin: 1 0;
     }
 
-    #httpd_prompt_buttons {
-        width: auto;
-        height: auto;
-        align: center middle;
-    }
-
     #httpd_prompt_buttons Button {
         width: 20;
         height: 3;
-        margin: 0 1;
     }
 
     DetailMenuModal {
@@ -937,17 +1354,6 @@ class DynflowTUI(App):
     #menu_container {
         width: 40;
         height: auto;
-        background: $surface;
-        border: thick $primary;
-        padding: 0;
-    }
-
-    #menu_title {
-        background: $boost;
-        color: #EE7D42;
-        padding: 0;
-        text-style: bold;
-        dock: top;
     }
 
     #menu_container Static {
@@ -967,21 +1373,26 @@ class DynflowTUI(App):
     #detail_container {
         width: 90%;
         height: 90%;
-        background: $surface;
-        border: thick $primary;
+    }
+
+    #detail_title_bar {
+        width: 100%;
+        height: auto;
+        background: $boost;
         padding: 0;
     }
 
     #detail_title {
-        background: $boost;
-        color: $text;
-        padding: 0;
-        text-style: bold;
+        width: 1fr;
+    }
+
+    #detail_close {
+        width: auto;
+        dock: right;
     }
 
     #detail_content {
         padding: 0;
-        height: auto;
     }
     """
 
@@ -992,16 +1403,17 @@ class DynflowTUI(App):
     }
 
     def __init__(self, db, conf, show_welcome=False, initial_mode="welcome",
-                 sqlite=None, input_dynflow=None):
+                 sqlite=None, postgres=None, input_dynflow=None):
         """Initialize the TUI application.
 
         Args:
-            db: OutputSQLite database instance
+            db: Database instance (OutputSQLite or InputPostgres)
             conf: Configuration object
             show_welcome: If True, show welcome screen first
             initial_mode: Initial mode to start with (welcome/tasks/httpd)
-            sqlite: OutputSQLite instance for data import
-            input_dynflow: InputDynflow instance for reading CSV files
+            sqlite: OutputSQLite instance for data import (SQLite mode)
+            postgres: InputPostgres instance (PostgreSQL mode)
+            input_dynflow: InputDynflow instance for reading CSV files (SQLite mode)
         """
         super().__init__()
         self.db = db
@@ -1010,6 +1422,7 @@ class DynflowTUI(App):
         self.initial_mode = initial_mode
         self.httpd_server = None
         self.sqlite = sqlite
+        self.postgres = postgres
         self.input_dynflow = input_dynflow
         self.import_stats = None
 
@@ -1018,7 +1431,22 @@ class DynflowTUI(App):
         # Install quit modal
         self.install_screen(QuitModal(), "quit")
 
-        # Check if database exists and ask user before importing
+        # PostgreSQL mode - check if we need to show connection modal
+        if self.conf.args.dbserver:
+            if self.postgres:
+                # Already connected (console mode)
+                self.db = self.postgres
+                # Go directly to tasks screen
+                if self.initial_mode == "welcome":
+                    self.push_screen(WelcomeScreen(self.conf.sos))
+                else:
+                    self.push_screen(TasksScreen(self.db, self.conf))
+            else:
+                # TUI mode - show PostgreSQL connection screen
+                self.push_screen(PostgresConnectionScreen(self.conf))
+            return
+
+        # SQLite mode - check if database exists and ask user before importing
         if self.conf.db_exists:
             # Show database reuse screen
             from .db_reuse import DatabaseReuseScreen
@@ -1047,6 +1475,84 @@ class DynflowTUI(App):
             self.push_screen(
                 TasksScreen(self.db, self.conf, show_welcome=False)
             )
+
+    def _connect_postgres_worker(self):
+        """Worker function to connect to PostgreSQL (runs in thread).
+
+        ONLY creates the connection. The connection automatically fetches:
+        - timezone (via SHOW timezone)
+        - schema version (via SELECT version FROM dynflow_schema_info)
+
+        Task UUIDs are loaded on-demand when needed.
+
+        Returns:
+            tuple: (success, data) where data is postgres instance or error
+        """
+        try:
+            from dynflowbrowser.lib.inputpostgres import InputPostgres
+
+            # Create PostgreSQL connection (blocking)
+            # This automatically runs 2 queries in connect():
+            #   1. SHOW timezone
+            #   2. SELECT version FROM dynflow_schema_info
+            postgres = InputPostgres(self.conf)
+
+            return (True, postgres)
+
+        except Exception as e:
+            import traceback
+            tb = traceback.format_exc()
+            return (False, (str(e), tb))
+
+    def _setup_welcome_after_postgres(self, postgres):
+        """Setup welcome screen after successful PostgreSQL connection.
+
+        Args:
+            postgres: InputPostgres instance
+        """
+        # Pop loading screen
+        self.pop_screen()
+
+        # Set database
+        self.db = postgres
+        self.postgres = postgres
+
+        # Install welcome screen
+        welcome_screen = WelcomeScreen()
+        self.install_screen(welcome_screen, "welcome")
+
+        # Create tasks screen
+        tasks_screen = TasksScreen(self.db, self.conf, show_welcome=True)
+        self.install_screen(tasks_screen, "tasks")
+
+        # Remove connection screen and show welcome
+        self.pop_screen()
+        self.push_screen("welcome")
+
+        # Update welcome screen with connection details
+        welcome_screen.update_postgres_connection_info(self.conf)
+
+    def _show_postgres_error(self, error_data):
+        """Show PostgreSQL connection error.
+
+        Args:
+            error_data: tuple of (error_message, traceback)
+        """
+        error_msg, tb = error_data
+
+        # Pop loading screen
+        self.pop_screen()
+
+        # Show error modal
+        error_text = (
+            f"[bold red]Failed to connect to PostgreSQL[/bold red]\n\n"
+            f"Error: {error_msg}\n\n"
+            f"Traceback:\n{tb}\n\n"
+            f"Press ESC to try again"
+        )
+
+        self.log.error(f"PostgreSQL connection error: {tb}")
+        self.push_screen(DetailModal("Connection Error", error_text))
 
     def action_switch_mode(self, mode: str) -> None:
         """Switch to a different mode.

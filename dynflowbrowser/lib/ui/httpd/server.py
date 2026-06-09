@@ -307,7 +307,8 @@ class DynamicHttpServer(HttpServer):
     """HTTP server that dynamically generates HTML from SQLite."""
 
     def __init__(self, conf, pulp_stats, dynflow_stats, quiet=False,
-                 log_callback=None, data_provider=None):
+                 log_callback=None, data_provider=None,
+                 postgres_connection=None):
         """Initialize dynamic HTTP server.
 
         Args:
@@ -317,6 +318,7 @@ class DynamicHttpServer(HttpServer):
             quiet: If True, suppress output messages
             log_callback: Optional callback function for logging messages
             data_provider: Data provider with plan-specific stats
+            postgres_connection: Optional existing PostgreSQL connection to reuse
         """
         super().__init__(conf.args.output_path, quiet)
         self.conf = conf
@@ -339,49 +341,84 @@ class DynamicHttpServer(HttpServer):
             autoescape=True
         )
 
+        # Reuse PostgreSQL connection if provided, otherwise create new one
+        self._shared_db_connection = postgres_connection
+        if self.conf.args.dbserver and not postgres_connection:
+            from dynflowbrowser.lib.inputpostgres import InputPostgres
+            print("[DEBUG] Creating NEW PostgreSQL connection for HTTP server")
+            self._shared_db_connection = InputPostgres(self.conf)
+
     def generate_tasks_html(self):
-        """Generate tasks HTML dynamically from SQLite database.
+        """Generate tasks HTML dynamically from database.
 
         Creates a new database connection for thread safety.
+        Works with both SQLite and PostgreSQL modes.
 
         Returns:
             str: Rendered HTML content
         """
-        # Create thread-local database connection
-        db = OutputSQLite(self.conf)
-        data_provider = BaseDataProvider(db, self.conf)
+        import time
 
-        # Copy pre-computed stats to thread-local data provider
-        data_provider.pulp_total_exectime = self.pulp_total_exectime
-        data_provider.dynflow_plans_exectime = {}
-        data_provider.pulp_plans_exectime = {}
+        # Reuse shared connection for PostgreSQL, create new for SQLite
+        t_start = time.time()
+        if self.conf.args.dbserver:
+            # Reuse the shared PostgreSQL connection (thread-safe for reads)
+            db = self._shared_db_connection
+        else:
+            # SQLite requires thread-local connections
+            db = OutputSQLite(self.conf)
+        data_provider = BaseDataProvider(db, self.conf)
+        t_db = time.time()
+        print(f"[DEBUG]   DB connection: {t_db - t_start:.2f}s")
 
         try:
             # Get tasks data
+            t_before_tasks = time.time()
             rows = data_provider.get_tasks_flat_list(
                 self.conf.args.showall
             )
+            t_after_tasks = time.time()
+            print(f"[DEBUG]   get_tasks_flat_list: {t_after_tasks - t_before_tasks:.2f}s ({len(rows)} rows)")
+
+            # Compute dynflow stats on-demand
+            t_before_stats = time.time()
+            if not self.dynflow_total_exectime:
+                # Compute stats (uses filters directly for PostgreSQL)
+                dynflow_stats = data_provider.get_dynflow_total_exectime()
+            else:
+                dynflow_stats = self.dynflow_total_exectime
+            t_after_stats = time.time()
+            print(f"[DEBUG]   Compute stats: {t_after_stats - t_before_stats:.2f}s")
 
             # Prepare template context
+            t_before_context = time.time()
             context = {
                 "rows": rows,
-                "dynflow_exectime": self.dynflow_total_exectime,
+                "dynflow_exectime": dynflow_stats,
                 "pulp_exectime": sorted(
                     self.pulp_total_exectime.items(),
                     key=lambda item: item[1],
                     reverse=True
-                )[:5],
+                )[:5] if self.pulp_total_exectime else [],
                 "dynflow_count_label": "Steps",
                 "pulp_count_label": "Count",
                 "sos": self.conf.sos,
             }
+            t_after_context = time.time()
+            print(f"[DEBUG]   Prepare context: {t_after_context - t_before_context:.2f}s")
 
             # Render template
+            t_before_render = time.time()
             template = self.jinja_env.get_template("tasks.html")
-            return template.render(context)
+            result = template.render(context)
+            t_after_render = time.time()
+            print(f"[DEBUG]   Template render: {t_after_render - t_before_render:.2f}s")
+            return result
         finally:
-            # Close thread-local database connection
-            db.close()
+            # Close thread-local database connection (only for SQLite)
+            if not self.conf.args.dbserver:
+                db.close()
+            # PostgreSQL connection is shared, don't close it
 
     def generate_actions_html(self, plan_uuid):
         """Generate actions HTML dynamically for a specific plan.
@@ -392,8 +429,13 @@ class DynamicHttpServer(HttpServer):
         Returns:
             str: Rendered HTML content
         """
-        # Create thread-local database connection
-        db = OutputSQLite(self.conf)
+        # Reuse shared connection for PostgreSQL, create new for SQLite
+        if self.conf.args.dbserver:
+            # Reuse the shared PostgreSQL connection
+            db = self._shared_db_connection
+        else:
+            # SQLite requires thread-local connections
+            db = OutputSQLite(self.conf)
         data_provider = BaseDataProvider(db, self.conf)
 
         # Copy pre-computed plan-specific stats
@@ -466,8 +508,10 @@ class DynamicHttpServer(HttpServer):
             template = self.jinja_env.get_template("actions.html")
             return template.render(context)
         finally:
-            # Close thread-local database connection
-            db.close()
+            # Close thread-local database connection (only for SQLite)
+            if not self.conf.args.dbserver:
+                db.close()
+            # PostgreSQL connection is shared, don't close it
     def get_server_name(self):
         """Override to provide server name."""
         return "HTTP Server (Dynamic Mode)"
@@ -522,7 +566,11 @@ class DynamicHttpServer(HttpServer):
                 elif self.path == '/' or self.path == '/index.html':
                     # Generate tasks HTML dynamically
                     try:
+                        import time
+                        t_start = time.time()
                         html_content = server_instance.generate_tasks_html()
+                        t_end = time.time()
+                        print(f"[DEBUG] generate_tasks_html took: {t_end - t_start:.2f}s")
 
                         # Send response
                         self.send_response(200)

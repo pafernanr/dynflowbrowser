@@ -15,6 +15,8 @@ BuildRequires:  python3-setuptools
 Requires: python3-jinja2
 Requires: python3-pytz
 Requires: python3-pandas
+Requires: python3-psycopg2
+Requires: python3-msgpack
 Requires: python3-textual
 
 %description

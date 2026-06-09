@@ -102,6 +102,14 @@ Examples:
             default=None
             )
         self.parser.add_argument(
+            '--dbserver',
+            dest='dbserver',
+            action='store_true',
+            help='Connect directly to PostgreSQL instead of importing CSV to SQLite. '
+                 'Requires PostgreSQL connection details.',
+            default=False
+            )
+        self.parser.add_argument(
             '-o',
             '--output_path',
             help="Write output to this path. Default is './dynflowbrowser/'.",
@@ -114,6 +122,10 @@ Examples:
             nargs='?'
             )
         self.args = self.parser.parse_args()
+
+        # Auto-set task_days to 14 for PostgreSQL mode if not specified
+        if self.args.dbserver and self.args.task_days is None:
+            self.args.task_days = 14
 
         # Validate sosreport_path after parsing
         if self.args.sosreport_path is None:
@@ -133,39 +145,59 @@ Examples:
             self.args.task_days is None
         )
 
-        # Validate sosreport path exists
-        if not os.path.exists(self.args.sosreport_path):
-            print(f"ERROR: sosreport path does not exist: {self.args.sosreport_path}")
-            sys.exit(1)
-
-        # Check for required files
-        required_files = [
-            'sos_commands/systemd/timedatectl',
-            'hostname',
-            'sos_commands/foreman/dynflow_schema_info'
-        ]
-        for required_file in required_files:
-            file_path = os.path.join(self.args.sosreport_path, required_file)
-            if not os.path.exists(file_path):
-                print(f"ERROR: Required file not found: {file_path}")
-                print(f"The path '{self.args.sosreport_path}' does not appear to be a valid sosreport directory.")
+        # PostgreSQL connection setup
+        if self.args.dbserver:
+            self._setup_postgres_connection()
+            # Set PostgreSQL-specific sos details (sets self.sos['sosname'])
+            self._set_postgres_sos_details()
+            # Use same output path pattern as sosreport mode
+            self.args.output_path = (
+                f"{self.args.output_path}/dynflowbrowser/{self.sos['sosname']}"
+                .replace('//', '/')
+            )
+        else:
+            # Validate sosreport path exists
+            if not os.path.exists(self.args.sosreport_path):
+                print(f"ERROR: sosreport path does not exist: {self.args.sosreport_path}")
                 sys.exit(1)
 
-        self.set_sos_details()
-        self.args.output_path = (
-            f"{self.args.output_path}/dynflowbrowser/{self.sos['sosname']}"
-            .replace('//', '/')
+            # Check for required files
+            required_files = [
+                'sos_commands/systemd/timedatectl',
+                'hostname',
+                'sos_commands/foreman/dynflow_schema_info'
+            ]
+            for required_file in required_files:
+                file_path = os.path.join(self.args.sosreport_path, required_file)
+                if not os.path.exists(file_path):
+                    print(f"ERROR: Required file not found: {file_path}")
+                    print(f"The path '{self.args.sosreport_path}' does not appear to be a valid sosreport directory.")
+                    sys.exit(1)
+
+            self.set_sos_details()
+            self.args.output_path = (
+                f"{self.args.output_path}/dynflowbrowser/{self.sos['sosname']}"
+                .replace('//', '/')
             )
 
         # Create base output directory
         os.makedirs(self.args.output_path, exist_ok=True)
 
-        self.dbfile = self.args.output_path + "/dynflowbrowser.db"
-        self.argsfile = self.args.output_path + "/execution_args.txt"
+        # Database files only needed for SQLite mode
+        if not self.args.dbserver:
+            self.dbfile = self.args.output_path + "/dynflowbrowser.db"
+            self.argsfile = self.args.output_path + "/execution_args.txt"
 
-        # Check if database file already exists
-        # Store DB existence info for TUI mode to handle
-        self.db_exists = os.path.exists(self.dbfile) and self.writesql
+            # Check if database file already exists
+            # Store DB existence info for TUI mode to handle
+            self.db_exists = os.path.exists(self.dbfile) and self.writesql
+        else:
+            # PostgreSQL mode - no local database files
+            self.dbfile = None
+            self.argsfile = None
+            self.dbfile = None
+            self.argsfile = None
+            self.db_exists = False
 
         # In non-TUI mode, ask user via console (legacy behavior)
         if self.db_exists and not self.tui_mode:
@@ -266,6 +298,39 @@ Examples:
             raise argparse.ArgumentTypeError(
                 f"{p!r} doesn't exist.")
 
+    def _set_postgres_sos_details(self):
+        """Set sos details from PostgreSQL connection instead of sosreport."""
+        # Connection details for display
+        server = self.db_params.get('server', 'localhost:5432')
+        database = self.db_params.get('database', 'foreman')
+        username = self.db_params.get('username', 'foreman')
+
+        # Build display string for hostname (use server)
+        self.sos['hostname'] = f"{server} (PostgreSQL)"
+
+        # Timezone will be fetched from PostgreSQL server later by InputPostgres
+        # For now, use a placeholder
+        self.sos['timezone'] = 'UTC'  # Will be updated by InputPostgres
+
+        # Use current time as localtime
+        import datetime as dt
+        self.sos['localtime'] = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        # Set database info instead of satellite version
+        self.sos['satversion'] = f"PostgreSQL Direct Connection"
+
+        # RAM/CPU not available - use N/A
+        self.sos['ram'] = 'N/A (remote database)'
+        self.sos['cpu'] = 'N/A (remote database)'
+
+        # Tuning not available
+        self.sos['tuning'] = 'N/A'
+
+        # Version will be fetched from database
+        self.dynflowdata['version'] = 'Unknown'  # Will be updated later
+
+        # Set sosname for output directory (using database@server)
+        self.sos['sosname'] = f"{database}@{server.split(':')[0]}"
 
     def parse_ram_info(self, free_output):
         """Parse free command output and return memory/swap in GB."""
@@ -318,3 +383,89 @@ Examples:
             os.path.normpath(self.args.sosreport_path))
         if self.sos['sosname'] == ".":
             self.sos['sosname'] = ""
+
+    def get_satellite_db_password(self):
+        """Extract db_password from satellite-answers.yaml.
+
+        Returns:
+            str: Database password or None if not found
+        """
+        yaml_path = "/etc/foreman-installer/scenarios.d/satellite-answers.yaml"
+
+        if not os.path.exists(yaml_path):
+            return None
+
+        try:
+            with open(yaml_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    # Match only lines starting with db_password: (after stripping)
+                    # This excludes candlepin_db_password, pulpcore_db_password, etc.
+                    stripped = line.strip()
+                    if stripped.startswith('db_password:'):
+                        # Extract password after the colon
+                        password = stripped.split('db_password:', 1)[1].strip()
+                        return password
+        except Exception as e:
+            self.util.debug("W", f"Could not read satellite-answers.yaml: {e}")
+            return None
+
+        return None
+
+    def _setup_postgres_connection(self):
+        """Prompt for PostgreSQL connection details."""
+        import getpass
+
+        self.db_params = {}
+
+        # In TUI mode, skip prompts - will be handled by modal dialog
+        # Set defaults that will be used
+        if self.tui_mode:
+            self.db_params = {
+                'server': 'localhost:5432',
+                'database': 'foreman',
+                'username': 'foreman',
+                'password': ''  # Will be set by modal
+            }
+            return
+
+        # Console mode - prompt for connection details
+        print("\nPostgreSQL Connection Settings:")
+        print("=" * 40)
+
+        # Server and port
+        self.db_params['server'] = input("Server:port [localhost:5432]: ").strip() or "localhost:5432"
+
+        # Database name
+        self.db_params['database'] = input("Database name [foreman]: ").strip() or "foreman"
+
+        # Username
+        self.db_params['username'] = input("Username [foreman]: ").strip() or "foreman"
+
+        # Password
+        default_password = self.get_satellite_db_password()
+        if default_password:
+            use_default = input("Use password from satellite-answers.yaml? [Y/n]: ").strip().lower()
+            if use_default != 'n':
+                self.db_params['password'] = default_password
+                print("Using password from satellite-answers.yaml")
+            else:
+                self.db_params['password'] = getpass.getpass("Password: ")
+        else:
+            self.db_params['password'] = getpass.getpass("Password: ")
+
+        # Task days - ALWAYS show and allow editing
+        current_task_days = self.args.task_days if self.args.task_days else "all"
+        task_days_input = input(f"\nTask days [{current_task_days}]: ").strip()
+
+        if task_days_input:
+            try:
+                self.args.task_days = int(task_days_input)
+            except ValueError:
+                print(f"Invalid number - keeping current value: {current_task_days}")
+
+        if self.args.task_days:
+            print(f"Will fetch tasks from last {self.args.task_days} days")
+        else:
+            print("Will fetch all tasks (no date filter)")
+
+        print()

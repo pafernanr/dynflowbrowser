@@ -11,6 +11,7 @@ def read(fname):
 setuptools.setup(
     name='dynflowbrowser',
     version='0.0.0',
+    python_requires='>=3.8',
     setup_requires=['Jinja2', 'pytz', 'textual', 'pandas', 'psycopg2-binary', 'msgpack'],
     install_requires=['Jinja2', 'pytz', 'textual', 'pandas', 'psycopg2-binary', 'msgpack'],
     scripts=[
@@ -42,5 +43,6 @@ setuptools.setup(
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.8',
     ],
     )

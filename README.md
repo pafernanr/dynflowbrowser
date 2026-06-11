@@ -1,11 +1,10 @@
 # DynflowBrowser
 
-Interactive browser for analyzing Dynflow task execution data from TheForeman/Red Hat Satellite sosreports.
+Interactive browser for analyzing Dynflow task execution data  from Foreman/Satellite.
 
 ## Overview
 
-- DynflowBrowser is based on [DynflowParser](https://github.com/pafernanr/dynflowparser/).
-- Compared to previous application, DynflowBrowser is much more FASTER because it does not generate all Action pages but only saves data to a SQLite file.
+- Dynflow data can be imported from a sosreport or by connecting to a live Foreman/Satellite server (connection is Read Only).
 - There are available two interfaces for analyzing Dynflow execution:
   - **Terminal Browser**: Fast keyboard/mouse-driven specifically designed TUI Dynflow browser.
   - **HTTPD Service**: Web interface accessible from any browser.

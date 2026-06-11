@@ -235,17 +235,42 @@ class StatsQueries:
             return db.query(sql, params or ())
         elif conf and conf.dynflowdata.get('includedUUID'):
             # SQLite: Use includedUUID list (static snapshot)
+            # SQLite has a limit on SQL variables (default 999, max ~32K)
+            # Batch queries to avoid "too many SQL variables" error
+            BATCH_SIZE = 900  # Safe limit under SQLite's default 999
             uuids = conf.dynflowdata['includedUUID']
-            placeholders = ','.join('?' * len(uuids))
-            sql = f"""
-                SELECT SUM(execution_time), COUNT(s.id), s.action_class
-                FROM dynflow_steps s
-                WHERE s.execution_plan_uuid IN ({placeholders})
-                GROUP BY s.action_class
-                ORDER BY SUM(execution_time) DESC
-                LIMIT 5
-            """
-            return db.query(sql, tuple(uuids))
+
+            # Collect all results from batched queries
+            all_results = {}  # {action_class: [sum_exec_time, count]}
+
+            for i in range(0, len(uuids), BATCH_SIZE):
+                batch = uuids[i:i + BATCH_SIZE]
+                placeholders = ','.join('?' * len(batch))
+                sql = f"""
+                    SELECT SUM(execution_time), COUNT(s.id), s.action_class
+                    FROM dynflow_steps s
+                    WHERE s.execution_plan_uuid IN ({placeholders})
+                    GROUP BY s.action_class
+                """
+                batch_results = db.query(sql, tuple(batch))
+
+                # Aggregate results across batches
+                for row in batch_results:
+                    sum_time, count, action_class = row
+                    if action_class in all_results:
+                        all_results[action_class][0] += sum_time or 0
+                        all_results[action_class][1] += count or 0
+                    else:
+                        all_results[action_class] = [sum_time or 0, count or 0]
+
+            # Sort by total execution time and return top 5
+            sorted_results = sorted(
+                [(v[0], v[1], k) for k, v in all_results.items()],
+                key=lambda x: x[0],
+                reverse=True
+            )[:5]
+
+            return sorted_results
         else:
             # No filtering - all steps
             sql = """

@@ -159,29 +159,31 @@ class HttpdOutput(BaseOutput):
 
         elif self.conf.dynflowdata['includedUUID']:
             # SQLite: Use includedUUID list (static snapshot)
-            uuid_placeholders = ','.join(
-                '?' * len(self.conf.dynflowdata['includedUUID'])
-            )
-            sql = (
-                "SELECT execution_plan_uuid, output "
-                + "FROM dynflow_actions "
-                + f"WHERE execution_plan_uuid IN ({uuid_placeholders}) "
-                + "AND output LIKE '%pulp_tasks%'"
-            )
-            rows = self.db.query(
-                sql,
-                tuple(self.conf.dynflowdata['includedUUID'])
-            )
+            # SQLite has a limit on SQL variables (default 999, max ~32K)
+            # Batch queries to avoid "too many SQL variables" error
+            BATCH_SIZE = 900  # Safe limit under SQLite's default 999
+            uuid_list = self.conf.dynflowdata['includedUUID']
+            rows = []
+            steps = []
 
-            sql_steps = (
-                "SELECT execution_plan_uuid, action_class, execution_time "
-                + "FROM dynflow_steps "
-                + f"WHERE execution_plan_uuid IN ({uuid_placeholders})"
-            )
-            steps = self.db.query(
-                sql_steps,
-                tuple(self.conf.dynflowdata['includedUUID'])
-            )
+            for i in range(0, len(uuid_list), BATCH_SIZE):
+                batch = uuid_list[i:i + BATCH_SIZE]
+                uuid_placeholders = ','.join('?' * len(batch))
+
+                sql = (
+                    "SELECT execution_plan_uuid, output "
+                    + "FROM dynflow_actions "
+                    + f"WHERE execution_plan_uuid IN ({uuid_placeholders}) "
+                    + "AND output LIKE '%pulp_tasks%'"
+                )
+                rows.extend(self.db.query(sql, tuple(batch)))
+
+                sql_steps = (
+                    "SELECT execution_plan_uuid, action_class, execution_time "
+                    + "FROM dynflow_steps "
+                    + f"WHERE execution_plan_uuid IN ({uuid_placeholders})"
+                )
+                steps.extend(self.db.query(sql_steps, tuple(batch)))
         else:
             # No filtering
             rows = []

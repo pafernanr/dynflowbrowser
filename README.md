@@ -57,7 +57,7 @@ Download from [Latest Release](https://github.com/pafernanr/dynflowbrowser/relea
 
 ```bash
 usage: dynflowbrowser [-h] [-v] [--search SEARCH] [--state {paused,pending,planned,planning,running,stopped}]
-                      [--result {error,pending,success,warning}] [--task-days TASK_DAYS] [-o OUTPUT_PATH]
+                      [--result {error,pending,success,warning}] [--task-days TASK_DAYS] [--dbserver] [-o OUTPUT_PATH]
                       [sosreport_path]
 
 Get sosreport dynflow files and generates user friendly html pages for tasks, plans, actions and steps
@@ -68,14 +68,14 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   -v, --version         show program's version number and exit
-  --search SEARCH       Search query using foreman-rake syntax. Supports operators: =, !=, ~, !~, >, <, >=, <= and connectors: AND,
-                        OR
+  --search SEARCH       Search query using foreman-rake syntax. Supports operators: =, !=, ~, !~, >, <, >=, <= and connectors: AND, OR
   --state {paused,pending,planned,planning,running,stopped}
                         Filter by task state. Valid: paused, pending, planned, planning, running, stopped
   --result {error,pending,success,warning}
                         Filter by task result. Valid: error, pending, success, warning
   --task-days TASK_DAYS
                         Import only tasks from last N days. Same as foreman-rake TASK_DAYS parameter.
+  --dbserver            Connect directly to PostgreSQL instead of importing CSV to SQLite. Requires PostgreSQL connection details.
   -o OUTPUT_PATH, --output_path OUTPUT_PATH
                         Write output to this path. Default is './dynflowbrowser/'.
 

@@ -50,7 +50,7 @@ Download from [Latest Release](https://github.com/pafernanr/dynflowbrowser/relea
 
 ## Requirements
 
-- Python 3.6+
+- Python 3.8+
 - Jinja2, pandas, pytz, textual
 
 ## Usage

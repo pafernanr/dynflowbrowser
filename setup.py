@@ -33,7 +33,7 @@ setuptools.setup(
     url='https://github.com/pafernanr/dynflowbrowser',
     keywords='theforeman dynflow',
     description="""
-        Interactive browser for analyzing Dynflow task execution data from TheForeman/Red Hat Satellite sosreports.""",
+        Interactive browser for analyzing Dynflow task execution data  from Foreman/Satellite.""",
     long_description_content_type='text/markdown',
     long_description=read("README.md"),
     classifiers=[

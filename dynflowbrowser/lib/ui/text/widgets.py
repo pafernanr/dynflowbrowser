@@ -201,15 +201,16 @@ class HostDetailsHeader(Static):
             ram_compact = parts.replace("  ", " ")
 
         # Split into two lines
+        k = STYLES['key']
         line1 = (
-            f"[{COLORS['accent']}]Host:[/] {hostname} | "
-            f"[{COLORS['accent']}]Ver:[/] {satversion} | "
-            f"[{COLORS['accent']}]TZ:[/] {timezone}"
+            f"[{k}]Host:[/] {hostname} | "
+            f"[{k}]Ver:[/] {satversion} | "
+            f"[{k}]TZ:[/] {timezone}"
         )
         line2 = (
-            f"[{COLORS['accent']}]Tuning:[/] {tuning} | "
-            f"[{COLORS['accent']}]CPU:[/] {cpu} | "
-            f"[{COLORS['accent']}]RAM:[/] {ram_compact}"
+            f"[{k}]Tuning:[/] {tuning} | "
+            f"[{k}]CPU:[/] {cpu} | "
+            f"[{k}]RAM:[/] {ram_compact}"
         )
         return f"{line1}\n{line2}"
 

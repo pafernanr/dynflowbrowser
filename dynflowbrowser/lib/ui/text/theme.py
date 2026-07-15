@@ -53,7 +53,7 @@ STYLES = {
     "info_text": "cyan",
 
     # Data display
-    "key": "cyan bold",             # For key:value pairs
+    "key": "cyan",                  # For key:value pairs
     "value": "white",
     "label": "yellow",              # For labels/tags
     "highlight": "yellow",          # For emphasized items

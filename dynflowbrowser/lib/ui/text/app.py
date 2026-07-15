@@ -1257,7 +1257,7 @@ class DynflowTUI(App):
 
     #action_details {
         height: auto;
-        background: $panel;
+        background: $boost;
         padding: 0;
     }
 

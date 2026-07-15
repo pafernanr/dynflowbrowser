@@ -281,6 +281,29 @@ class ActionsScreen(Screen):
         table = self.query_one("#actions_tree")
         table.focus()
 
+    def _toggle_expand_collapse(self, table) -> None:
+        """Toggle expand/collapse for the current action row."""
+        if table.cursor_row is None or table.cursor_row >= len(table.row_keys):
+            return
+
+        row_key = table.row_keys[table.cursor_row]
+        if row_key not in table.row_data:
+            return
+
+        row_data = table.row_data[row_key]
+
+        if row_data['type'] == 'action':
+            action_id = row_data['action_id']
+            if action_id in table.expanded_actions:
+                table.collapse_action()
+            else:
+                table.expand_action()
+
+    def on_data_table_row_selected(self, event) -> None:
+        """Handle row selection (Enter key or left click on selected row)."""
+        table = self.query_one("#actions_tree")
+        self._toggle_expand_collapse(table)
+
     def on_key(self, event) -> None:
         """Handle key presses.
 
@@ -291,26 +314,14 @@ class ActionsScreen(Screen):
 
         # Enter expands/collapses nodes
         if event.key == "enter":
-            if table.cursor_row is None or table.cursor_row >= len(table.row_keys):
-                return
-
-            row_key = table.row_keys[table.cursor_row]
-            if row_key not in table.row_data:
-                return
-
-            row_data = table.row_data[row_key]
-
-            # Only expand/collapse actions (not steps)
-            if row_data['type'] == 'action':
-                action_id = row_data['action_id']
-                # Toggle expansion
-                if action_id in table.expanded_actions:
-                    table.collapse_action()
-                else:
-                    table.expand_action()
-                event.prevent_default()
-                event.stop()
+            self._toggle_expand_collapse(table)
+            event.prevent_default()
+            event.stop()
         # Left/Right now scroll horizontally (default DataTable behavior)
+
+    def on_actions_tree_table_right_clicked(self, event) -> None:
+        """Handle right-click on a row to show details."""
+        self.action_show_detail_menu()
 
     def update_bindings(self, row_type: str = None) -> None:
         """Update current row type for validation.
@@ -1239,7 +1250,6 @@ class DynflowTUI(App):
     AppHeader {
         height: 1;
         dock: top;
-        background: $boost;
         padding: 0 1;
         content-align: left middle;
     }

@@ -6,6 +6,7 @@ from rich.console import RenderableType
 from rich.table import Table
 from rich.text import Text
 from textual.containers import VerticalScroll
+from textual.message import Message
 from textual.widgets import DataTable
 from textual.widgets import Static
 
@@ -986,6 +987,26 @@ class ActionStatsPanel(Static):
 
 class ActionsTreeTable(DataTable):
     """Tree-style table for displaying actions and their steps."""
+
+    class RightClicked(Message):
+        """Posted when a row is right-clicked."""
+
+    def on_click(self, event) -> None:
+        """Handle right-click to show details for the clicked row."""
+        if event.button != 3:
+            return
+
+        meta = event.style.meta
+        if "row" not in meta:
+            return
+
+        row_index = meta["row"]
+        if row_index < len(self.row_keys):
+            self.move_cursor(row=row_index, column=0)
+            self.post_message(self.RightClicked())
+
+        event.prevent_default()
+        event.stop()
 
     def __init__(self, db, conf, plan_uuid=None, **kwargs):
         """Initialize actions tree table.

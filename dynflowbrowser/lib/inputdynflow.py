@@ -27,9 +27,12 @@ class InputDynflow:
         expected_headers = self.conf.dynflowdata[dtype]['headers']
 
         # Read first line to check if it has headers
+        # Use exact field matching to avoid false positives from truncated
+        # files where embedded JSON may contain header-like substrings
         with open(inputfile, 'r', encoding='utf-8') as f:
             first_line = f.readline().strip()
-        has_headers = any(header in first_line for header in expected_headers)
+        first_fields = {f.strip() for f in first_line.split(',')}
+        has_headers = len(first_fields.intersection(expected_headers)) >= 3
 
         # Use pandas for faster CSV reading
         if has_headers:
